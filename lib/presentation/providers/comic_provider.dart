@@ -53,9 +53,8 @@ class ComicProvider with ChangeNotifier {
     try {
       final futures = await Future.wait([
         _scraperService.fetchSeries(preset: 'popular_all', take: 10, includeMeta : true),
-        _scraperService.fetchSeries(type: 'project', take: 20),
+        _scraperService.fetchSeries(preset: 'rilisan_terbaru',type: 'project', take: 20),
         _scraperService.fetchSeries(preset: 'rilisan_terbaru', take: 20, page: _currentPage),
-        // _scraperService.getHomeComicsBE(page: _currentPage),
       ]);
       _popularComics = futures[0] as List<ComicModel>;
       _projectComics = futures[1] as List<ComicModel>;
@@ -68,29 +67,6 @@ class ComicProvider with ChangeNotifier {
       debugPrint('Error fetchHomeComics: ${e.toString()}');
     }
     _isLoading = false;
-    notifyListeners();
-  }
-
-  Future<void> fetchMoreHomeComics() async {
-    if (_isFetchingMore || !_hasNextPage || _isLoading) return;
-
-    _isFetchingMore = true;
-    notifyListeners();
-
-    try {
-      _currentPage++;
-      final moreComics = await _scraperService.getHomeComicsBE(page: _currentPage);
-      if (moreComics.isEmpty) {
-        _hasNextPage = false;
-      } else {
-        _homeComics.addAll(moreComics);
-      }
-    } catch (e) {
-      debugPrint('Error fetchMoreHomeComics: ${e.toString()}');
-      _currentPage--; // fallback
-    }
-
-    _isFetchingMore = false;
     notifyListeners();
   }
 
@@ -179,7 +155,25 @@ class ComicProvider with ChangeNotifier {
     await fetchBookmarks();
   }
 
+  Future<void> toggleBookmarkReader(ComicModel comic) async {
+    bool isBookmarked = await _databaseHelper.isBookmarked(comic.link);
+    bool isBookmarkedReader = await _databaseHelper.isBookmarkedReader(comic.latestChapter!);
+    if (isBookmarked) {
+      await _databaseHelper.removeBookmark(comic.link);
+      if(!isBookmarkedReader){
+        await _databaseHelper.saveBookmark(comic);
+      }
+    } else {
+      await _databaseHelper.saveBookmark(comic);
+    }
+    await fetchBookmarks();
+  }
+
   Future<bool> isBookmarked(String link) async {
     return await _databaseHelper.isBookmarked(link);
+  }
+
+  Future<bool> isBookmarkedReader(String index) async {
+    return await _databaseHelper.isBookmarkedReader(index);
   }
 }

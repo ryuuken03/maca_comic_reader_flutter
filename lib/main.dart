@@ -35,8 +35,14 @@ class MyApp extends StatelessWidget {
         GoRoute(
           path: '/reader',
           builder: (context, state) {
-            final chapterUrl = state.extra as String;
-            return ReaderPage(chapterUrl: chapterUrl);
+            if (state.extra is String) {
+              return ReaderPage(chapterUrl: state.extra as String);
+            }
+            final extra = state.extra as Map<String, dynamic>;
+            return ReaderPage(
+              chapterUrl: extra['chapterUrl'] as String,
+              fromDetail: extra['fromDetail'] as bool? ?? false,
+            );
           },
         ),
         GoRoute(

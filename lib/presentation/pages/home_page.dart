@@ -37,6 +37,7 @@ class _HomePageState extends State<HomePage> {
         children: _pages,
       ),
       bottomNavigationBar: BottomNavigationBar(
+        selectedItemColor: const Color(0xFFFDD644),
         items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Beranda'),
           BottomNavigationBarItem(icon: Icon(Icons.history), label: 'Riwayat'),
@@ -181,9 +182,9 @@ class __HomeContentState extends State<_HomeContent> {
                   _buildLihatSemuaButton(context, 'Komik Popular', preset: 'popular_all'),
 
                   const SizedBox(height: 16),
-                  _buildSectionHeader(context, 'Proyek', type: 'project'),
+                  _buildSectionHeader(context, 'Proyek', type: 'project',preset: 'rilisan_terbaru'),
                   _buildHorizontalList(provider.projectComics),
-                  _buildLihatSemuaButton(context, 'Proyek', type: 'project'),
+                  _buildLihatSemuaButton(context, 'Proyek', type: 'project',preset: 'rilisan_terbaru'),
 
                   const SizedBox(height: 16),
                   _buildSectionHeader(context, 'Komik Terbaru', preset: 'rilisan_terbaru'),

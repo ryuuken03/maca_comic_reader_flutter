@@ -14,7 +14,10 @@ class ChapterTile extends StatelessWidget {
       subtitle: chapter.releaseDate != null ? Text(chapter.releaseDate!) : null,
       trailing: const Icon(Icons.chevron_right),
       onTap: () {
-        context.push('/reader', extra: chapter.link);
+        context.push('/reader', extra: {
+          'chapterUrl': chapter.link,
+          'fromDetail': true,
+        });
       },
     );
   }

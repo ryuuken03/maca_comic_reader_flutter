@@ -134,7 +134,10 @@ class _BookmarkPageState extends State<BookmarkPage> {
                 comic: comic,
                 onTap: () {
                   if (comic.chapterLink != null && comic.chapterLink!.isNotEmpty) {
-                    context.push('/reader', extra: comic.chapterLink!);
+                    context.push('/reader', extra: {
+                      'chapterUrl': comic.chapterLink!,
+                      'fromDetail': false,
+                    });
                   } else {
                     context.push('/detail', extra: comic.link);
                   }

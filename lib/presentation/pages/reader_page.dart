@@ -7,8 +7,9 @@ import '../providers/comic_provider.dart';
 
 class ReaderPage extends StatefulWidget {
   final String chapterUrl;
+  final bool fromDetail;
 
-  const ReaderPage({Key? key, required this.chapterUrl}) : super(key: key);
+  const ReaderPage({Key? key, required this.chapterUrl, this.fromDetail = false}) : super(key: key);
 
   @override
   _ReaderPageState createState() => _ReaderPageState();
@@ -36,7 +37,7 @@ class _ReaderPageState extends State<ReaderPage> {
               if (provider.readerComicLink.isEmpty || provider.detailComic == null) return const SizedBox.shrink();
 
               return FutureBuilder<bool>(
-                future: provider.isBookmarked(provider.readerComicLink),
+                future: provider.isBookmarkedReader(actIndexStr),
                 builder: (context, snapshot) {
                   bool isBookmarked = snapshot.data ?? false;
                   return IconButton(
@@ -56,7 +57,7 @@ class _ReaderPageState extends State<ReaderPage> {
                         status: detail.status,
                         format: detail.format,
                       );
-                      provider.toggleBookmark(bookmarkModel);
+                      provider.toggleBookmarkReader(bookmarkModel);
                       (context as Element).markNeedsBuild();
                     },
                   );
@@ -129,14 +130,17 @@ class _ReaderPageState extends State<ReaderPage> {
                   icon: const Icon(Icons.skip_previous),
                   onPressed: prevChapterUrl != null
                       ? () {
-                          context.pushReplacement('/reader', extra: prevChapterUrl);
+                          context.pushReplacement('/reader', extra: {
+                            'chapterUrl': prevChapterUrl,
+                            'fromDetail': widget.fromDetail,
+                          });
                         }
                       : null,
                 ),
                 Expanded(
                   child: GestureDetector(
                     onTap: () {
-                      if (context.canPop()) {
+                      if (widget.fromDetail && context.canPop()) {
                         context.pop();
                       } else if (provider.readerComicLink.isNotEmpty) {
                         context.pushReplacement('/detail', extra: provider.readerComicLink);
@@ -155,7 +159,10 @@ class _ReaderPageState extends State<ReaderPage> {
                   icon: const Icon(Icons.skip_next),
                   onPressed: nextChapterUrl != null
                       ? () {
-                          context.pushReplacement('/reader', extra: nextChapterUrl);
+                          context.pushReplacement('/reader', extra: {
+                            'chapterUrl': nextChapterUrl,
+                            'fromDetail': widget.fromDetail,
+                          });
                         }
                       : null,
                 ),
