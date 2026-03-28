@@ -4,6 +4,7 @@ import '../../core/constants/constants.dart';
 import '../models/comic_model.dart';
 import '../models/chapter_model.dart';
 import '../models/detail_comic_model.dart';
+import '../models/genre_model.dart';
 
 class ScraperService {
   Future<List<ComicModel>> getHomeComicsBE({int page = 1}) async {
@@ -302,6 +303,194 @@ class ScraperService {
     }
     
     return ReaderData(images: images, title: title, seriesLink: seriesLink);
+  }
+
+  Future<List<ComicModel>> fetchSeries({
+    String? searchQuery,
+    String? preset, // rilisan_terbaru, popular_all
+    String? type,
+    bool? includeMeta,
+    String? sort, // latest
+    String? sortOrder, // desc
+    List<String>? genres,
+    int page = 1,
+    int take = 20,
+  }) async {
+    // 1. Definisikan parameter dasar yang selalu ada
+    Map<String, dynamic> queryParameters = {
+      'takeChapter': '3',
+      'take': take.toString(),
+      'page': page.toString(),
+    };
+
+    // 2. Tambahkan preset jika ada
+    if (preset != null && preset.isNotEmpty) {
+      queryParameters['preset'] = preset;
+    }
+
+    // 3. Tambahkan type jika ada
+    if (type != null && type.isNotEmpty) {
+      queryParameters['type'] = type;
+    }
+
+    // 3. Tambahkan includeMeta jika ada
+    if (includeMeta != null) {
+      queryParameters['includeMeta'] = includeMeta.toString();
+    }
+
+    // 4. Tambahkan sort jika ada
+    if (sort != null && sort.isNotEmpty) {
+      queryParameters['sort'] = sort;
+    }
+
+    // 5. Tambahkan sortOrder jika ada
+    if (sortOrder != null && sortOrder.isNotEmpty) {
+      queryParameters['sortOrder'] = sortOrder;
+    }
+
+    // 6. Tambahkan filter pencarian jika ada
+    if (searchQuery != null && searchQuery.isNotEmpty) {
+      queryParameters['filter'] = 'title=like="$searchQuery",nativeTitle=like="$searchQuery"';
+    }
+
+    // 7. Tambahkan filter genre jika ada (Multiple values)
+    if (genres != null && genres.isNotEmpty) {
+      queryParameters['genreIds'] = genres;
+    }
+
+    // 8. Bangun URI (Uri.https akan otomatis menangani list genreIds menjadi genreIds=A&genreIds=B)
+    Uri uri = Uri.https('be.komikcast.cc', '/series', queryParameters);
+
+    print("uri:"+uri.toString());
+
+    try {
+      final response = await http.get(uri, headers: {
+        'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'application/json, text/plain, */*',
+        'Referer': 'https://v1.komikcast.fit/',
+      });
+
+      if (response.statusCode == 200) {
+        final jsonResponse = json.decode(response.body);
+        List<ComicModel> comics = [];
+        List<dynamic> listData = [];
+        
+        if (jsonResponse is List) {
+          listData = jsonResponse;
+        } else if (jsonResponse is Map && jsonResponse['data'] != null) {
+          if (jsonResponse['data'] is List) {
+            listData = jsonResponse['data'];
+          } else if (jsonResponse['data']['data'] is List) {
+            listData = jsonResponse['data']['data'];
+          }
+        }
+
+        for (var itemRaw in listData) {
+          if (itemRaw is! Map) continue;
+          var item = itemRaw as Map<String, dynamic>;
+          
+          var innerData = item['data'];
+          if (innerData == null || innerData is! Map) {
+            innerData = item;
+          }
+
+          String title = innerData['title'] ?? innerData['name'] ?? 'No Title';
+          String thumbUrl = innerData['coverImage'] ?? innerData['thumbnail'] ?? innerData['cover'] ?? innerData['backgroundImage'] ?? '';
+          String slug = innerData['slug'] ?? '';
+          String linkDetail = slug.isNotEmpty ? '/komik/$slug' : '';
+          
+          String? latestChapter;
+          String? chapterLink;
+          
+          final chapters = item['chapters'] ?? innerData['chapters'];
+          if (chapters != null && chapters is List && chapters.isNotEmpty) {
+            final firstChapter = chapters.first;
+            final chapData = firstChapter['data'] ?? {};
+            
+            final chapTitle = chapData['title'];
+            final chapIndex = firstChapter['chapterIndex'] ?? chapData['number'];
+            
+            latestChapter = chapTitle != null ? chapTitle.toString() : 'Chapter $chapIndex';
+            if (latestChapter == 'Chapter null') {
+              latestChapter = 'Chapter ${firstChapter['id']}';
+            }
+            
+            final chapterSlug = chapData['slug'];
+            if (chapterSlug != null) {
+              chapterLink = '/chapter/$chapterSlug';
+            } else if (firstChapter['id'] != null) {
+              chapterLink = '/chapter/${firstChapter['id']}';
+            }
+          }
+
+          if (linkDetail.isNotEmpty && !linkDetail.startsWith('http')) {
+            linkDetail = '${AppConstants.baseUrl}$linkDetail';
+          }
+          if (chapterLink != null && chapterLink.isNotEmpty && !chapterLink.startsWith('http')) {
+            chapterLink = '${AppConstants.baseUrl}$chapterLink';
+          }
+          
+          String type = innerData['type']?.toString() ?? '';
+          String status = innerData['status']?.toString() ?? '';
+          String format = innerData['format']?.toString() ?? '';
+
+          comics.add(ComicModel(
+            title: title,
+            thumbUrl: thumbUrl,
+            link: linkDetail,
+            latestChapter: latestChapter,
+            chapterLink: chapterLink,
+            type: type,
+            status: status,
+            format: format,
+          ));
+        }
+
+        return comics;
+      } else {
+        throw Exception('Gagal memuat data');
+      }
+    } catch (e) {
+      print("Error: $e");
+      return [];
+    }
+  }
+
+  Future<List<GenreModel>> getGenres() async {
+    Uri uri = Uri.https('be.komikcast.cc', '/genres');
+    try {
+      final response = await http.get(uri, headers: {
+        'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'application/json, text/plain, */*',
+        'Referer': 'https://v1.komikcast.fit/',
+      });
+
+      if (response.statusCode == 200) {
+        final jsonResponse = json.decode(response.body);
+        List<GenreModel> genres = [];
+        List<dynamic> listData = [];
+
+        if (jsonResponse is List) {
+          listData = jsonResponse;
+        } else if (jsonResponse is Map && jsonResponse['data'] != null) {
+          listData = jsonResponse['data'];
+        }
+
+        for (var item in listData) {
+          if (item is Map<String, dynamic>) {
+            genres.add(GenreModel.fromJson(item));
+          }
+        }
+        return genres;
+      } else {
+        throw Exception('Gagal memuat genre');
+      }
+    } catch (e) {
+      print("Error getGenres: $e");
+      return [];
+    }
   }
 }
 
