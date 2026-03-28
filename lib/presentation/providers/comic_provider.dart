@@ -11,6 +11,12 @@ class ComicProvider with ChangeNotifier {
   List<ComicModel> _homeComics = [];
   List<ComicModel> get homeComics => _homeComics;
 
+  List<ComicModel> _popularComics = [];
+  List<ComicModel> get popularComics => _popularComics;
+
+  List<ComicModel> _projectComics = [];
+  List<ComicModel> get projectComics => _projectComics;
+
   List<ComicModel> _bookmarks = [];
   List<ComicModel> get bookmarks => _bookmarks;
 
@@ -45,7 +51,16 @@ class ComicProvider with ChangeNotifier {
     _hasNextPage = true;
     notifyListeners();
     try {
-      _homeComics = await _scraperService.getHomeComicsBE(page: _currentPage);
+      final futures = await Future.wait([
+        _scraperService.fetchSeries(preset: 'popular_all', take: 10, includeMeta : true),
+        _scraperService.fetchSeries(type: 'project', take: 20),
+        _scraperService.fetchSeries(preset: 'rilisan_terbaru', take: 20, page: _currentPage),
+        // _scraperService.getHomeComicsBE(page: _currentPage),
+      ]);
+      _popularComics = futures[0] as List<ComicModel>;
+      _projectComics = futures[1] as List<ComicModel>;
+      _homeComics = futures[2] as List<ComicModel>;
+      
       if (_homeComics.isEmpty) {
         _hasNextPage = false;
       }
