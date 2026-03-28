@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../data/models/comic_model.dart';
 import '../providers/comic_provider.dart';
 import '../widgets/comic_card.dart';
 import 'bookmark_page.dart';
@@ -56,27 +57,103 @@ class _HomeContent extends StatefulWidget {
 }
 
 class __HomeContentState extends State<_HomeContent> {
-  final ScrollController _scrollController = ScrollController();
-
   @override
   void initState() {
     super.initState();
-    _scrollController.addListener(_onScroll);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<ComicProvider>().fetchHomeComics();
     });
   }
 
-  void _onScroll() {
-    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
-      context.read<ComicProvider>().fetchMoreHomeComics();
-    }
+  Widget _buildSectionHeader(BuildContext context, String title, {String? preset, String? type}) {
+    return InkWell(
+      onTap: () {
+        context.push('/list', extra: {'title': title, 'preset': preset, 'type': type});
+      },
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              title,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const Icon(Icons.chevron_right),
+          ],
+        ),
+      ),
+    );
   }
 
-  @override
-  void dispose() {
-    _scrollController.dispose();
-    super.dispose();
+  Widget _buildLihatSemuaButton(BuildContext context, String title, {String? preset, String? type}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+      child: SizedBox(
+        width: double.infinity,
+        child: OutlinedButton(
+          onPressed: () {
+            context.push('/list', extra: {'title': title, 'preset': preset, 'type': type});
+          },
+          style: OutlinedButton.styleFrom(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(6),
+            ),
+          ),
+          child: const Text('Lihat Semua'),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHorizontalList(List<ComicModel> comics) {
+    if (comics.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.all(16.0),
+        child: Center(child: Text('Tidak ada komik ditemukan')),
+      );
+    }
+    return SizedBox(
+      height: 250,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        itemCount: comics.length,
+        itemBuilder: (context, index) {
+          return SizedBox(
+            width: 140,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4.0),
+              child: ComicCard(comic: comics[index]),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildGrid(List<ComicModel> comics) {
+    if (comics.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.all(16.0),
+        child: Center(child: Text('Tidak ada komik ditemukan')),
+      );
+    }
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        childAspectRatio: 0.7,
+        crossAxisSpacing: 8,
+        mainAxisSpacing: 8,
+      ),
+      itemCount: comics.length,
+      itemBuilder: (context, index) {
+        return ComicCard(comic: comics[index]);
+      },
+    );
   }
 
   @override
@@ -87,39 +164,34 @@ class __HomeContentState extends State<_HomeContent> {
       ),
       body: Consumer<ComicProvider>(
         builder: (context, provider, child) {
-          if (provider.isLoading && provider.homeComics.isEmpty) {
+          if (provider.isLoading && provider.homeComics.isEmpty && provider.popularComics.isEmpty) {
             return const Center(child: CircularProgressIndicator());
-          }
-          if (provider.homeComics.isEmpty) {
-            return const Center(child: Text('Tidak ada komik ditemukan'));
           }
 
           return RefreshIndicator(
             onRefresh: () => provider.fetchHomeComics(),
-            child: Column(
-              children: [
-                Expanded(
-                  child: GridView.builder(
-                    controller: _scrollController,
-                    padding: const EdgeInsets.all(8),
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      childAspectRatio: 0.7,
-                      crossAxisSpacing: 8,
-                      mainAxisSpacing: 8,
-                    ),
-                    itemCount: provider.homeComics.length,
-                    itemBuilder: (context, index) {
-                      return ComicCard(comic: provider.homeComics[index]);
-                    },
-                  ),
-                ),
-                if (provider.isFetchingMore)
-                  const Padding(
-                    padding: EdgeInsets.all(8.0),
-                    child: Center(child: CircularProgressIndicator()),
-                  ),
-              ],
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildSectionHeader(context, 'Komik Popular', preset: 'popular_all'),
+                  _buildHorizontalList(provider.popularComics),
+                  _buildLihatSemuaButton(context, 'Komik Popular', preset: 'popular_all'),
+
+                  const SizedBox(height: 16),
+                  _buildSectionHeader(context, 'Proyek', type: 'project'),
+                  _buildHorizontalList(provider.projectComics),
+                  _buildLihatSemuaButton(context, 'Proyek', type: 'project'),
+
+                  const SizedBox(height: 16),
+                  _buildSectionHeader(context, 'Komik Terbaru', preset: 'rilisan_terbaru'),
+                  _buildGrid(provider.homeComics),
+                  _buildLihatSemuaButton(context, 'Komik Terbaru', preset: 'rilisan_terbaru'),
+                  const SizedBox(height: 16),
+                ],
+              ),
             ),
           );
         },
