@@ -1,5 +1,6 @@
 class AppConstants {
   static const String baseUrl = 'https://v1.komikcast.fit';
+  static const String apiBaseUrl = 'https://be.komikcast.cc';
 
   // Selectors with fallbacks for MangaStream / Komikcast changes
   static const String homeListSelector = '.list-update .utao, .listupd .bs, .listo .bsx, .bigor';
