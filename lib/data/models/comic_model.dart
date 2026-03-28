@@ -44,4 +44,6 @@ class ComicModel {
       format: map['format']?.toString() ?? '',
     );
   }
+
+  void operator []=(String other, String value) {}
 }
