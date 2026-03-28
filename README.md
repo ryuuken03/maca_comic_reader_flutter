@@ -26,7 +26,7 @@ Pastikan Anda sudah menginstal sistem inti berikut di komputer/laptop:
 1. **Clone Repositori Ini:**
    Buka *Command Prompt/Terminal/Git Bash* di folder tempat Anda ingin menaruh proyek ini, dan ketikkan:
    ```bash
-   git clone [URL_REPOSITORI_INI]
+   git clone https://github.com/ryuuken03/maca_comic_reader_flutter.git
    cd maca
    ```
 2. **Pasang Dependensi (*Packages*):**
