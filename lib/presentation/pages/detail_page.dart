@@ -17,6 +17,13 @@ class DetailPage extends StatefulWidget {
 class _DetailPageState extends State<DetailPage> {
   bool _isExpanded = false;
   String _searchChapterQuery = '';
+  final TextEditingController _searchController = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -44,7 +51,7 @@ class _DetailPageState extends State<DetailPage> {
                   return IconButton(
                     icon: Icon(
                       isBookmarked ? Icons.bookmark : Icons.bookmark_border,
-                      color: isBookmarked ? Colors.yellow : null,
+                      color: isBookmarked ? const Color(0xFFFDD644) : null,
                     ),
                     onPressed: () {
                       final detail = provider.detailComic!;
@@ -238,12 +245,24 @@ class _DetailPageState extends State<DetailPage> {
                       ),
                       const SizedBox(height: 8),
                       TextField(
+                        controller: _searchController,
                         decoration: InputDecoration(
                            hintText: 'Cari chapter...',
                            prefixIcon: const Icon(Icons.search),
+                           suffixIcon: _searchChapterQuery.isNotEmpty ? IconButton(
+                             icon: const Icon(Icons.clear),
+                             onPressed: () {
+                                _searchController.clear();
+                                setState(() {
+                                   _searchChapterQuery = '';
+                                });
+                             },
+                           ) : null,
                            border: OutlineInputBorder(
                              borderRadius: BorderRadius.circular(8.0),
                            ),
+                           filled: true,
+                           fillColor: const Color(0xFF2C2C2C),
                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
                         ),
                         onChanged: (val) {
