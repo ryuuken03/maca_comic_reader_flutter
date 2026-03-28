@@ -36,7 +36,8 @@ CREATE TABLE bookmarks (
   chapterLink $textTypeNull,
   type $textTypeNull,
   status $textTypeNull,
-  format $textTypeNull
+  format $textTypeNull,
+  updatedAt $textTypeNull
 )
 ''');
 
@@ -108,16 +109,20 @@ CREATE TABLE history (
     await db.delete('history');
   }
 
-
-
   Future<void> saveBookmark(ComicModel comic) async {
     final db = await instance.database;
-    await db.insert('bookmarks', comic.toMap());
+    final map = comic.toMap();
+    map['updatedAt'] = DateTime.now().toIso8601String();
+    await db.insert(
+        'bookmarks',
+        map,
+        conflictAlgorithm: ConflictAlgorithm.replace
+    );
   }
 
   Future<List<ComicModel>> getBookmarks() async {
     final db = await instance.database;
-    final maps = await db.query('bookmarks');
+    final maps = await db.query('bookmarks', orderBy: 'updatedAt DESC');
 
     return maps.map((map) => ComicModel.fromMap(map)).toList();
   }
@@ -138,6 +143,16 @@ CREATE TABLE history (
       'bookmarks',
       where: 'link = ?',
       whereArgs: [link],
+    );
+    return maps.isNotEmpty;
+  }
+
+  Future<bool> isBookmarkedReader(String index) async {
+    final db = await instance.database;
+    final maps = await db.query(
+      'bookmarks',
+      where: 'latestChapter = ?',
+      whereArgs: [index],
     );
     return maps.isNotEmpty;
   }
