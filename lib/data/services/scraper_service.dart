@@ -7,138 +7,25 @@ import '../models/detail_comic_model.dart';
 import '../models/genre_model.dart';
 
 class ScraperService {
-  Future<List<ComicModel>> getHomeComicsBE({int page = 1}) async {
-    final url =
-        'https://be.komikcast.cc/series?preset=rilisan_terbaru&take=20&takeChapter=3&page=$page';
-    final response = await http.get(Uri.parse(url), headers: {
-      'User-Agent':
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      'Accept': 'application/json, text/plain, */*',
-      'Referer': 'https://v1.komikcast.fit/',
-    });
-
-    if (response.statusCode != 200) {
-      throw Exception('Gagal memuat API Backend (Status: ${response.statusCode}). Kemungkinan diblokir Cloudflare.');
-    }
-
-    List<ComicModel> comics = [];
-    try {
-      final jsonResponse = jsonDecode(response.body);
-      
-      // Ambil metadata jika ada, untuk mengetahui batas lastPage
-      final meta = jsonResponse['meta'];
-      if (meta != null && meta['lastPage'] != null) {
-        int lastPage = meta['lastPage'] is int ? meta['lastPage'] : int.tryParse(meta['lastPage'].toString()) ?? page;
-        if (page > lastPage) {
-          return comics; // Langsung return kosong (sudah mentok)
-        }
-      }
-      
-      // Mengantisipasi ragam struktur JSON API dan mencegah tipe akses error (String vs int)
-      List<dynamic> listData = [];
-      if (jsonResponse is List) {
-        listData = jsonResponse;
-      } else if (jsonResponse is Map) {
-        // if (jsonResponse['data'] is Map && jsonResponse['data']['data'] is List) {
-        //   listData = jsonResponse['data']['data'];
-        // } else if (jsonResponse['data'] is List) {
-          listData = jsonResponse['data'];
-        // } else if (jsonResponse['result'] is List) {
-        //   listData = jsonResponse['result'];
-        // }
-      }
-      
-      for (var itemRaw in listData) {
-        if (itemRaw is! Map) continue;
-        var item = itemRaw as Map<String, dynamic>;
-        
-        // Data komik utama biasanya tersarang di dalam key 'data'
-        var innerData = item['data'];
-        if (innerData == null || innerData is! Map) {
-          innerData = item;
-        }
-
-        String title = innerData['title'] ?? innerData['name'] ?? 'No Title';
-        String thumbUrl = innerData['coverImage'] ?? innerData['thumbnail'] ?? innerData['cover'] ?? innerData['backgroundImage'] ?? '';
-        String slug = innerData['slug'] ?? '';
-        String linkDetail = slug.isNotEmpty ? '/komik/$slug' : '';
-        
-        String? latestChapter;
-        String? chapterLink;
-        
-        // Chapter list ada di key 'chapters' dari item
-        final chapters = item['chapters'] ?? innerData['chapters'];
-        if (chapters != null && chapters is List && chapters.isNotEmpty) {
-          final firstChapter = chapters.first;
-          final chapData = firstChapter['data'] ?? {};
-          
-          final chapTitle = chapData['title'];
-          final chapIndex = firstChapter['chapterIndex'] ?? chapData['number'];
-          
-          latestChapter = chapTitle != null ? chapTitle.toString() : 'Chapter $chapIndex';
-          if (latestChapter == 'Chapter null') {
-            latestChapter = 'Chapter ${firstChapter['id']}';
-          }
-          
-          final chapterSlug = chapData['slug'];
-          if (chapterSlug != null) {
-            chapterLink = '/chapter/$chapterSlug';
-          } else if (firstChapter['id'] != null) {
-            chapterLink = '/chapter/${firstChapter['id']}';
-          }
-        }
-
-        // Resolusi link jadi absolute
-        if (linkDetail.isNotEmpty && !linkDetail.startsWith('http')) {
-          linkDetail = '${AppConstants.baseUrl}$linkDetail';
-        }
-        if (chapterLink != null && chapterLink.isNotEmpty && !chapterLink.startsWith('http')) {
-          chapterLink = '${AppConstants.baseUrl}$chapterLink';
-        }
-        
-        String type = innerData['type']?.toString() ?? '';
-        String status = innerData['status']?.toString() ?? '';
-        String format = innerData['format']?.toString() ?? '';
-
-        comics.add(ComicModel(
-          title: title,
-          thumbUrl: thumbUrl,
-          link: linkDetail,
-          latestChapter: latestChapter,
-          chapterLink: chapterLink,
-          type: type,
-          status: status,
-          format: format,
-        ));
-      }
-    } catch (e) {
-      throw Exception('Gagal me-parsing JSON Backend: $e');
-    }
-    
-    return comics;
-  }
-
-
+  Map<String, String> get _headers => {
+        'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'application/json, text/plain, */*',
+        'Referer': '${AppConstants.baseUrl}/',
+      };
+  
   Future<DetailComicModel> getDetailComic(String url) async {
-    // Ekstrak slug dari URL lama seperti https://v1.komikcast.fit/komik/manga-slug/
     String slug = url;
     if (url.contains('/komik/')) {
       slug = url.split('/komik/').last.replaceAll('/', '');
     }
 
-    final apiUrl = 'https://be.komikcast.cc/series/$slug?includeMeta=true';
-    final chaptersApiUrl = 'https://be.komikcast.cc/series/$slug/chapters';
-
-    final headers = {
-      'User-Agent':
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      'Accept': 'application/json, text/plain, */*',
-      'Referer': 'https://v1.komikcast.fit/',
-    };
+    final apiUrl = '${AppConstants.apiBaseUrl}/series/$slug?includeMeta=true';
+    final chaptersApiUrl = '${AppConstants.apiBaseUrl}/series/$slug/chapters';
 
     final responses = await Future.wait([
-      http.get(Uri.parse(apiUrl), headers: headers),
-      http.get(Uri.parse(chaptersApiUrl), headers: headers),
+      http.get(Uri.parse(apiUrl), headers: _headers),
+      http.get(Uri.parse(chaptersApiUrl), headers: _headers),
     ]);
 
     final detailRes = responses[0];
@@ -167,7 +54,6 @@ class ScraperService {
 
       List<ChapterModel> chaptersData = [];
       
-      // Mengambil daftar chapters dari endpoint /chapters khusus
       final chaptersList = jsonChapter['data'];
 
       if (chaptersList != null && chaptersList is List) {
@@ -177,7 +63,7 @@ class ScraperService {
           String chapIndexStr = chapterRaw['chapterIndex']?.toString() ?? chapInfo['index']?.toString() ?? '';
           String chapTitle = 'Chapter $chapIndexStr';
 
-          String chapLink = 'https://be.komikcast.cc/series/$slug/chapters/$chapIndexStr';
+          String chapLink = '${AppConstants.apiBaseUrl}/series/$slug/chapters/$chapIndexStr';
 
           String? rawDate = chapterRaw['createdAt'] ?? chapInfo['date']?.toString();
 
@@ -247,14 +133,6 @@ class ScraperService {
   }
 
   Future<ReaderData> getReaderDataBE(String chapterApiUrl) async {
-    print("chapterApiUrl:"+chapterApiUrl);
-    final headers = {
-      'User-Agent':
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      'Accept': 'application/json, text/plain, */*',
-      'Referer': 'https://v1.komikcast.fit/',
-    };
-
     String seriesSlug = '';
     if (chapterApiUrl.contains('/series/')) {
        final parts = chapterApiUrl.split('/series/').last.split('/');
@@ -264,15 +142,15 @@ class ScraperService {
     }
 
     // Jika URL yang diklik bukan pola API (karena bookmark lama di DB), kembalikan fallback atau paksa ubah
-    if (!chapterApiUrl.startsWith('https://be.komikcast.cc/')) {
+    if (!chapterApiUrl.startsWith('${AppConstants.apiBaseUrl}/')) {
        throw Exception('Endpoint API tidak dikenali. Coba muat ulang daftar episode.');
     }
 
-    final seriesApiUrl = 'https://be.komikcast.cc/series/$seriesSlug?includeMeta=true';
+    final seriesApiUrl = '${AppConstants.apiBaseUrl}/series/$seriesSlug?includeMeta=true';
     
     final responses = await Future.wait([
-      http.get(Uri.parse(chapterApiUrl), headers: headers),
-      http.get(Uri.parse(seriesApiUrl), headers: headers),
+      http.get(Uri.parse(chapterApiUrl), headers: _headers),
+      http.get(Uri.parse(seriesApiUrl), headers: _headers),
     ]);
     
     final chapRes = responses[0];
@@ -359,17 +237,10 @@ class ScraperService {
     }
 
     // 8. Bangun URI (Uri.https akan otomatis menangani list genreIds menjadi genreIds=A&genreIds=B)
-    Uri uri = Uri.https('be.komikcast.cc', '/series', queryParameters);
-
-    print("uri:"+uri.toString());
+    Uri uri = Uri.parse('${AppConstants.apiBaseUrl}/series').replace(queryParameters: queryParameters);
 
     try {
-      final response = await http.get(uri, headers: {
-        'User-Agent':
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'application/json, text/plain, */*',
-        'Referer': 'https://v1.komikcast.fit/',
-      });
+      final response = await http.get(uri, headers: _headers);
 
       if (response.statusCode == 200) {
         final jsonResponse = json.decode(response.body);
@@ -458,14 +329,9 @@ class ScraperService {
   }
 
   Future<List<GenreModel>> getGenres() async {
-    Uri uri = Uri.https('be.komikcast.cc', '/genres');
+    Uri uri = Uri.parse('${AppConstants.apiBaseUrl}/genres');
     try {
-      final response = await http.get(uri, headers: {
-        'User-Agent':
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'application/json, text/plain, */*',
-        'Referer': 'https://v1.komikcast.fit/',
-      });
+      final response = await http.get(uri, headers: _headers);
 
       if (response.statusCode == 200) {
         final jsonResponse = json.decode(response.body);
