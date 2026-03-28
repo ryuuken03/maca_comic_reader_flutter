@@ -1,6 +1,6 @@
 {
-    "name": "komik_app",
-    "short_name": "komik_app",
+    "name": "maca",
+    "short_name": "maca",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

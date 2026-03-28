@@ -39,7 +39,7 @@ class ComicCard extends StatelessWidget {
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                         decoration: BoxDecoration(
-                          color: Colors.black54,
+                          color: Colors.black12,
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Text(

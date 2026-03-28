@@ -89,13 +89,13 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "com.maca.komik_app" "\0"
-            VALUE "FileDescription", "komik_app" "\0"
+            VALUE "CompanyName", "com.maca.reader" "\0"
+            VALUE "FileDescription", "maca" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "komik_app" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2026 com.maca.komik_app. All rights reserved." "\0"
-            VALUE "OriginalFilename", "komik_app.exe" "\0"
-            VALUE "ProductName", "komik_app" "\0"
+            VALUE "InternalName", "maca" "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2026 com.maca.reader. All rights reserved." "\0"
+            VALUE "OriginalFilename", "maca.exe" "\0"
+            VALUE "ProductName", "maca" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

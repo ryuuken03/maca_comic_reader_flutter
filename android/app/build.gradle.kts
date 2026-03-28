@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-    namespace = "com.maca.komik_app.komik_app"
+    namespace = "com.maca.reader"
     compileSdk = flutter.compileSdkVersion
 //    ndkVersion = flutter.ndkVersion
     ndkVersion = "28.0.12433566"
@@ -25,7 +25,7 @@ android {
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.maca.komik_app.komik_app"
+        applicationId = "com.maca.reader"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion

@@ -1,4 +1,4 @@
-package com.maca.komik_app.komik_app
+package com.maca.reader
 
 import io.flutter.embedding.android.FlutterActivity
 
