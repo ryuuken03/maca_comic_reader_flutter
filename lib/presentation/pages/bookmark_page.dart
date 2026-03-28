@@ -13,6 +13,13 @@ class BookmarkPage extends StatefulWidget {
 
 class _BookmarkPageState extends State<BookmarkPage> {
   String _searchQuery = '';
+  final TextEditingController _searchController = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -69,14 +76,24 @@ class _BookmarkPageState extends State<BookmarkPage> {
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
             child: TextField(
+              controller: _searchController,
               decoration: InputDecoration(
                  hintText: 'Cari komik tersimpan...',
                  prefixIcon: const Icon(Icons.search),
+                 suffixIcon: _searchQuery.isNotEmpty ? IconButton(
+                   icon: const Icon(Icons.clear),
+                   onPressed: () {
+                      _searchController.clear();
+                      setState(() {
+                         _searchQuery = '';
+                      });
+                   },
+                 ) : null,
                  border: OutlineInputBorder(
                    borderRadius: BorderRadius.circular(8.0),
                  ),
                  filled: true,
-                 fillColor: Colors.white,
+                 fillColor: const Color(0xFF2C2C2C),
                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
               ),
               onChanged: (val) {
