@@ -6,8 +6,9 @@ import 'package:go_router/go_router.dart';
 class ComicCard extends StatelessWidget {
   final ComicModel comic;
   final VoidCallback? onTap;
+  final VoidCallback? onDelete;
 
-  const ComicCard({Key? key, required this.comic, this.onTap}) : super(key: key);
+  const ComicCard({Key? key, required this.comic, this.onTap, this.onDelete}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -32,6 +33,21 @@ class ComicCard extends StatelessWidget {
                     alignment: Alignment.topCenter,
                     errorWidget: (context, url, error) => const Icon(Icons.error),
                   ),
+                  if (onDelete != null)
+                    Positioned(
+                      top: 4,
+                      right: 4,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.5),
+                          shape: BoxShape.circle,
+                        ),
+                        child: IconButton(
+                          icon: const Icon(Icons.delete, size: 18, color: Colors.white),
+                          onPressed: onDelete,
+                        ),
+                      ),
+                    ),
                   if (comic.format.toLowerCase() == 'manga' || comic.format.toLowerCase() == 'manhwa' || comic.format.toLowerCase() == 'manhua')
                     Positioned(
                       bottom: 4,
@@ -55,13 +71,16 @@ class ComicCard extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.all(8.0),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text(
-                    comic.title,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  SizedBox(
+                    height: 36, // Fixed height for 2 lines
+                    child: Text(
+                      comic.title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                    ),
                   ),
                   if (comic.status.isNotEmpty || comic.type.isNotEmpty) ...[
                     const SizedBox(height: 4),
@@ -87,8 +106,17 @@ class ComicCard extends StatelessWidget {
                   if (comic.latestChapter != null) ...[
                     const SizedBox(height: 4),
                     Text(
-                      comic.latestChapter!,
-                      style: const TextStyle(fontSize: 12, color: Colors.grey),
+                      comic.latestChapter!.toLowerCase().contains('chapter') 
+                        ? comic.latestChapter! 
+                        : 'Chapter ${comic.latestChapter!}',
+                      style: const TextStyle(fontSize: 11, color: Colors.grey),
+                    ),
+                  ],
+                  if (comic.updatedAt != null && comic.updatedAt != '') ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      comic.updatedAt,
+                      style: const TextStyle(fontSize: 11, color: Colors.grey),
                     ),
                   ],
                 ],
