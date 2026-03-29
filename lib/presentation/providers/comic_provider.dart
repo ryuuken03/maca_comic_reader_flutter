@@ -145,6 +145,16 @@ class ComicProvider with ChangeNotifier {
     await fetchBookmarks();
   }
 
+  Future<void> removeBookmark(String link) async {
+    await _databaseHelper.removeBookmark(link);
+    await fetchBookmarks();
+  }
+
+  Future<void> removeHistory(String link) async {
+    await _databaseHelper.removeHistory(link);
+    await fetchHistory();
+  }
+
   Future<void> toggleBookmark(ComicModel comic) async {
     bool isBookmarked = await _databaseHelper.isBookmarked(comic.link);
     if (isBookmarked) {
@@ -157,7 +167,7 @@ class ComicProvider with ChangeNotifier {
 
   Future<void> toggleBookmarkReader(ComicModel comic) async {
     bool isBookmarked = await _databaseHelper.isBookmarked(comic.link);
-    bool isBookmarkedReader = await _databaseHelper.isBookmarkedReader(comic.latestChapter!);
+    bool isBookmarkedReader = await _databaseHelper.isBookmarkedReader(comic.link, comic.latestChapter!);
     if (isBookmarked) {
       await _databaseHelper.removeBookmark(comic.link);
       if(!isBookmarkedReader){
@@ -173,7 +183,7 @@ class ComicProvider with ChangeNotifier {
     return await _databaseHelper.isBookmarked(link);
   }
 
-  Future<bool> isBookmarkedReader(String index) async {
-    return await _databaseHelper.isBookmarkedReader(index);
+  Future<bool> isBookmarkedReader(String link, String index) async {
+    return await _databaseHelper.isBookmarkedReader(link, index);
   }
 }
