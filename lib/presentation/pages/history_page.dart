@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import '../providers/comic_provider.dart';
 import '../widgets/comic_card.dart';
+import '../widgets/delete_confirmation_dialog.dart';
+import '../widgets/search_input.dart';
 
 class HistoryPage extends StatefulWidget {
   const HistoryPage({Key? key}) : super(key: key);
@@ -45,24 +47,10 @@ class _HistoryPageState extends State<HistoryPage> {
                   showDialog(
                     context: context,
                     builder: (BuildContext dialogContext) {
-                      return AlertDialog(
-                        title: const Text('Hapus Riwayat'),
-                        content: const Text('Apakah Anda yakin ingin menghapus semua riwayat?'),
-                        actions: [
-                          TextButton(
-                            onPressed: () {
-                              Navigator.of(dialogContext).pop();
-                            },
-                            child: const Text('Batal'),
-                          ),
-                          TextButton(
-                            onPressed: () {
-                              context.read<ComicProvider>().clearHistory();
-                              Navigator.of(dialogContext).pop();
-                            },
-                            child: const Text('Ya, Hapus', style: TextStyle(color: Colors.red)),
-                          ),
-                        ],
+                      return DeleteConfirmationDialog(
+                        title: 'Hapus Riwayat',
+                        content: 'Apakah Anda yakin ingin menghapus semua riwayat?',
+                        onConfirm: () => context.read<ComicProvider>().clearHistory(),
                       );
                     },
                   );
@@ -75,27 +63,9 @@ class _HistoryPageState extends State<HistoryPage> {
           preferredSize: const Size.fromHeight(60.0),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-            child: TextField(
+            child: SearchInput(
               controller: _searchController,
-              decoration: InputDecoration(
-                 hintText: 'Cari riwayat komik...',
-                 prefixIcon: const Icon(Icons.search),
-                 suffixIcon: _searchQuery.isNotEmpty ? IconButton(
-                   icon: const Icon(Icons.clear),
-                   onPressed: () {
-                      _searchController.clear();
-                      setState(() {
-                         _searchQuery = '';
-                      });
-                   },
-                 ) : null,
-                 border: OutlineInputBorder(
-                   borderRadius: BorderRadius.circular(8.0),
-                 ),
-                 filled: true,
-                 fillColor: const Color(0xFF2C2C2C),
-                 contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
-              ),
+              hintText: 'Cari riwayat komik...',
               onChanged: (val) {
                  setState(() {
                     _searchQuery = val;
@@ -132,6 +102,18 @@ class _HistoryPageState extends State<HistoryPage> {
               final comic = historyList[index];
               return ComicCard(
                 comic: comic,
+                onDelete: () {
+                   showDialog(
+                    context: context,
+                    builder: (BuildContext dialogContext) {
+                      return DeleteConfirmationDialog(
+                        title: 'Hapus Riwayat',
+                        content: 'Apakah Anda yakin ingin menghapus "${comic.title}" dari riwayat?',
+                        onConfirm: () => context.read<ComicProvider>().removeHistory(comic.link),
+                      );
+                    },
+                  );
+                },
                 onTap: () {
                   if (comic.chapterLink != null && comic.chapterLink!.isNotEmpty) {
                     context.push('/reader', extra: {

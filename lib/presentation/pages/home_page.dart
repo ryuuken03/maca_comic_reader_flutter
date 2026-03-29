@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../data/models/comic_model.dart';
 import '../providers/comic_provider.dart';
 import '../widgets/comic_card.dart';
+import '../widgets/show_all_button.dart';
 import 'bookmark_page.dart';
 import 'history_page.dart';
 import 'package:go_router/go_router.dart';
@@ -87,23 +88,15 @@ class __HomeContentState extends State<_HomeContent> {
     );
   }
 
-  Widget _buildLihatSemuaButton(BuildContext context, String title, {String? preset, String? type}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-      child: SizedBox(
-        width: double.infinity,
-        child: OutlinedButton(
-          onPressed: () {
-            context.push('/list', extra: {'title': title, 'preset': preset, 'type': type});
-          },
-          style: OutlinedButton.styleFrom(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(6),
-            ),
-          ),
-          child: const Text('Lihat Semua'),
-        ),
-      ),
+  Widget _buildShowAllButton(BuildContext context, String title, {String? preset, String? type}) {
+    return ShowAllButton(
+      onTap: () {
+        context.push('/comic-list', extra: {
+          'title': title,
+          'preset': preset,
+          'type': type,
+        });
+      },
     );
   }
 
@@ -179,17 +172,17 @@ class __HomeContentState extends State<_HomeContent> {
                 children: [
                   _buildSectionHeader(context, 'Komik Popular', preset: 'popular_all'),
                   _buildHorizontalList(provider.popularComics),
-                  _buildLihatSemuaButton(context, 'Komik Popular', preset: 'popular_all'),
+                  _buildShowAllButton(context, 'Komik Popular', preset: 'popular_all'),
 
                   const SizedBox(height: 16),
                   _buildSectionHeader(context, 'Proyek', type: 'project',preset: 'rilisan_terbaru'),
                   _buildHorizontalList(provider.projectComics),
-                  _buildLihatSemuaButton(context, 'Proyek', type: 'project',preset: 'rilisan_terbaru'),
+                  _buildShowAllButton(context, 'Proyek', type: 'project',preset: 'rilisan_terbaru'),
 
                   const SizedBox(height: 16),
                   _buildSectionHeader(context, 'Komik Terbaru', preset: 'rilisan_terbaru'),
                   _buildGrid(provider.homeComics),
-                  _buildLihatSemuaButton(context, 'Komik Terbaru', preset: 'rilisan_terbaru'),
+                  _buildShowAllButton(context, 'Komik Terbaru', preset: 'rilisan_terbaru'),
                   const SizedBox(height: 16),
                 ],
               ),

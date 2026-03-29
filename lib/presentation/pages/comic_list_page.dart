@@ -3,6 +3,8 @@ import '../../data/models/comic_model.dart';
 import '../../data/models/genre_model.dart';
 import '../../data/services/scraper_service.dart';
 import '../widgets/comic_card.dart';
+import '../widgets/genre_chip.dart';
+import '../widgets/search_input.dart';
 
 class ComicListPage extends StatefulWidget {
   final String title;
@@ -69,16 +71,9 @@ class _ComicListPageState extends State<ComicListPage> {
                           spacing: 8.0,
                           children: allGenres.map((genre) {
                             final isSelected = _selectedGenreIds.contains(genre.name.toString());
-                            return FilterChip(
-                              label: Text(
-                                genre.name,
-                                style: TextStyle(
-                                  color: isSelected ? Colors.black : null,
-                                ),
-                              ),
-                              selected: isSelected,
-                              selectedColor: const Color(0xFFFDD644),
-                              checkmarkColor: Colors.black,
+                            return GenreChip(
+                              label: genre.name,
+                              isSelected: isSelected,
                               onSelected: (bool selected) {
                                 setDialogState(() {
                                   if (selected) {
@@ -233,43 +228,23 @@ class _ComicListPageState extends State<ComicListPage> {
           preferredSize: const Size.fromHeight(60.0),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-            child: TextField(
+            child: SearchInput(
               controller: _searchController,
-              textInputAction: TextInputAction.search,
-              decoration: InputDecoration(
-                 hintText: 'Cari komik...',
-                 prefixIcon: const Icon(Icons.search),
-                 suffixIcon: Row(
-                   mainAxisSize: MainAxisSize.min,
-                   children: [
-                     if (_searchQuery.isNotEmpty)
-                       IconButton(
-                         icon: const Icon(Icons.clear),
-                         onPressed: () {
-                            _searchController.clear();
-                            setState(() {
-                               _searchQuery = '';
-                            });
-                            FocusManager.instance.primaryFocus?.unfocus();
-                            _fetchInitialData();
-                         },
-                       ),
-                     IconButton(
-                       icon: Icon(
-                         Icons.filter_list,
-                         color: _selectedGenreIds.isNotEmpty ? Colors.blue : null,
-                       ),
-                       onPressed: _showFilterDialog,
-                     ),
-                   ],
-                 ),
-                 border: OutlineInputBorder(
-                   borderRadius: BorderRadius.circular(8.0),
-                 ),
-                 filled: true,
-                 fillColor: const Color(0xFF2C2C2C),
-                 contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+              hintText: 'Cari komik...',
+              suffixIcon: IconButton(
+                icon: Icon(
+                  Icons.filter_list,
+                  color: _selectedGenreIds.isNotEmpty ? const Color(0xFFFDD644) : null,
+                ),
+                onPressed: _showFilterDialog,
               ),
+              onClear: () {
+                 setState(() {
+                    _searchQuery = '';
+                 });
+                 FocusManager.instance.primaryFocus?.unfocus();
+                 _fetchInitialData();
+              },
               onSubmitted: (val) {
                  setState(() {
                     _searchQuery = val;

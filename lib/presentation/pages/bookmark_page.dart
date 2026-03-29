@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import '../providers/comic_provider.dart';
 import '../widgets/comic_card.dart';
+import '../widgets/delete_confirmation_dialog.dart';
+import '../widgets/search_input.dart';
 
 class BookmarkPage extends StatefulWidget {
   const BookmarkPage({Key? key}) : super(key: key);
@@ -45,24 +47,10 @@ class _BookmarkPageState extends State<BookmarkPage> {
                   showDialog(
                     context: context,
                     builder: (BuildContext dialogContext) {
-                      return AlertDialog(
-                        title: const Text('Hapus Tersimpan'),
-                        content: const Text('Apakah Anda yakin ingin menghapus semua komik tersimpan?'),
-                        actions: [
-                          TextButton(
-                            onPressed: () {
-                              Navigator.of(dialogContext).pop();
-                            },
-                            child: const Text('Batal'),
-                          ),
-                          TextButton(
-                            onPressed: () {
-                              context.read<ComicProvider>().clearBookmarks();
-                              Navigator.of(dialogContext).pop();
-                            },
-                            child: const Text('Ya, Hapus', style: TextStyle(color: Colors.red)),
-                          ),
-                        ],
+                      return DeleteConfirmationDialog(
+                        title: 'Hapus Tersimpan',
+                        content: 'Apakah Anda yakin ingin menghapus semua komik tersimpan?',
+                        onConfirm: () => context.read<ComicProvider>().clearBookmarks(),
                       );
                     },
                   );
@@ -75,27 +63,9 @@ class _BookmarkPageState extends State<BookmarkPage> {
           preferredSize: const Size.fromHeight(60.0),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-            child: TextField(
+            child: SearchInput(
               controller: _searchController,
-              decoration: InputDecoration(
-                 hintText: 'Cari komik tersimpan...',
-                 prefixIcon: const Icon(Icons.search),
-                 suffixIcon: _searchQuery.isNotEmpty ? IconButton(
-                   icon: const Icon(Icons.clear),
-                   onPressed: () {
-                      _searchController.clear();
-                      setState(() {
-                         _searchQuery = '';
-                      });
-                   },
-                 ) : null,
-                 border: OutlineInputBorder(
-                   borderRadius: BorderRadius.circular(8.0),
-                 ),
-                 filled: true,
-                 fillColor: const Color(0xFF2C2C2C),
-                 contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
-              ),
+              hintText: 'Cari komik tersimpan...',
               onChanged: (val) {
                  setState(() {
                     _searchQuery = val;
@@ -132,6 +102,18 @@ class _BookmarkPageState extends State<BookmarkPage> {
               final comic = bookmarkList[index];
               return ComicCard(
                 comic: comic,
+                onDelete: () {
+                   showDialog(
+                    context: context,
+                    builder: (BuildContext dialogContext) {
+                      return DeleteConfirmationDialog(
+                        title: 'Hapus Tersimpan',
+                        content: 'Apakah Anda yakin ingin menghapus "${comic.title}" dari daftar tersimpan?',
+                        onConfirm: () => context.read<ComicProvider>().removeBookmark(comic.link),
+                      );
+                    },
+                  );
+                },
                 onTap: () {
                   if (comic.chapterLink != null && comic.chapterLink!.isNotEmpty) {
                     context.push('/reader', extra: {

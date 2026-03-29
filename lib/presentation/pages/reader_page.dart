@@ -37,7 +37,7 @@ class _ReaderPageState extends State<ReaderPage> {
               if (provider.readerComicLink.isEmpty || provider.detailComic == null) return const SizedBox.shrink();
 
               return FutureBuilder<bool>(
-                future: provider.isBookmarkedReader(actIndexStr),
+                future: provider.isBookmarkedReader(provider.readerComicLink, actIndexStr),
                 builder: (context, snapshot) {
                   bool isBookmarked = snapshot.data ?? false;
                   return IconButton(

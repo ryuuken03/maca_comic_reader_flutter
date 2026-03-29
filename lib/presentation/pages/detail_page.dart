@@ -4,6 +4,8 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../../data/models/comic_model.dart';
 import '../providers/comic_provider.dart';
 import '../widgets/chapter_tile.dart';
+import '../widgets/genre_chip.dart';
+import '../widgets/search_input.dart';
 
 class DetailPage extends StatefulWidget {
   final String comicUrl;
@@ -182,11 +184,7 @@ class _DetailPageState extends State<DetailPage> {
                                 Wrap(
                                   spacing: 4.0,
                                   runSpacing: 4.0,
-                                  children: detail.genres.map((g) => Chip(
-                                    label: Text(g, style: const TextStyle(fontSize: 10)),
-                                    padding: EdgeInsets.zero,
-                                    visualDensity: VisualDensity.compact,
-                                  )).toList(),
+                                  children: detail.genres.map((g) => GenreChip(label: g)).toList(),
                                 ),
                               ],
                             ],
@@ -244,27 +242,9 @@ class _DetailPageState extends State<DetailPage> {
                         style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 8),
-                      TextField(
+                      SearchInput(
                         controller: _searchController,
-                        decoration: InputDecoration(
-                           hintText: 'Cari chapter...',
-                           prefixIcon: const Icon(Icons.search),
-                           suffixIcon: _searchChapterQuery.isNotEmpty ? IconButton(
-                             icon: const Icon(Icons.clear),
-                             onPressed: () {
-                                _searchController.clear();
-                                setState(() {
-                                   _searchChapterQuery = '';
-                                });
-                             },
-                           ) : null,
-                           border: OutlineInputBorder(
-                             borderRadius: BorderRadius.circular(8.0),
-                           ),
-                           filled: true,
-                           fillColor: const Color(0xFF2C2C2C),
-                           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
-                        ),
+                        hintText: 'Cari chapter...',
                         onChanged: (val) {
                            setState(() {
                               _searchChapterQuery = val;
@@ -277,7 +257,10 @@ class _DetailPageState extends State<DetailPage> {
               ),
               SliverList(
                 delegate: SliverChildBuilderDelegate((context, index) {
-                  return ChapterTile(chapter: filteredChapters[index]);
+                  return ChapterTile(
+                    chapter: filteredChapters[index],
+                    comicUrl: widget.comicUrl,
+                  );
                 }, childCount: filteredChapters.length),
               ),
             ],
