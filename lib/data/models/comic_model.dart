@@ -7,6 +7,7 @@ class ComicModel {
   final String type;
   final String status;
   final String format;
+  final String updatedAt;
 
   ComicModel({
     required this.title,
@@ -17,6 +18,7 @@ class ComicModel {
     this.type = '',
     this.status = '',
     this.format = '',
+    this.updatedAt = '',
   });
 
   Map<String, dynamic> toMap() {
@@ -29,6 +31,7 @@ class ComicModel {
       'type': type,
       'status': status,
       'format': format,
+      'updatedAt': updatedAt,
     };
   }
 
@@ -42,6 +45,7 @@ class ComicModel {
       type: map['type']?.toString() ?? '',
       status: map['status']?.toString() ?? '',
       format: map['format']?.toString() ?? '',
+      updatedAt: map['updatedAt']?.toString() ?? '',
     );
   }
 
