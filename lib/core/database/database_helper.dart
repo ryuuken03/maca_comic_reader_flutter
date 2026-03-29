@@ -101,12 +101,21 @@ CREATE TABLE history (
   Future<List<ComicModel>> getHistory() async {
     final db = await instance.database;
     final maps = await db.query('history', orderBy: 'updatedAt DESC');
-    return maps.map((map) => ComicModel.fromMap(map)).toList();
+    return maps.map((map) {
+      final m = Map<String, dynamic>.from(map);
+      m.remove('updatedAt');
+      return ComicModel.fromMap(m);
+    }).toList();
   }
 
   Future<void> clearHistory() async {
     final db = await instance.database;
     await db.delete('history');
+  }
+
+  Future<void> removeHistory(String link) async {
+    final db = await instance.database;
+    await db.delete('history', where: 'link = ?', whereArgs: [link]);
   }
 
   Future<void> saveBookmark(ComicModel comic) async {
@@ -124,7 +133,11 @@ CREATE TABLE history (
     final db = await instance.database;
     final maps = await db.query('bookmarks', orderBy: 'updatedAt DESC');
 
-    return maps.map((map) => ComicModel.fromMap(map)).toList();
+    return maps.map((map) {
+      final m = Map<String, dynamic>.from(map);
+      m.remove('updatedAt');
+      return ComicModel.fromMap(m);
+    }).toList();
   }
 
   Future<void> removeBookmark(String link) async {
@@ -147,12 +160,12 @@ CREATE TABLE history (
     return maps.isNotEmpty;
   }
 
-  Future<bool> isBookmarkedReader(String index) async {
+  Future<bool> isBookmarkedReader(String link, String index) async {
     final db = await instance.database;
     final maps = await db.query(
       'bookmarks',
-      where: 'latestChapter = ?',
-      whereArgs: [index],
+      where: 'link = ? AND latestChapter = ?',
+      whereArgs: [link, index],
     );
     return maps.isNotEmpty;
   }
