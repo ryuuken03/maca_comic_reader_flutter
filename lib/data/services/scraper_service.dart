@@ -5,6 +5,7 @@ import '../models/comic_model.dart';
 import '../models/chapter_model.dart';
 import '../models/detail_comic_model.dart';
 import '../models/genre_model.dart';
+import '../../util/util.dart';
 
 class ScraperService {
   Map<String, String> get _headers => {
@@ -71,7 +72,7 @@ class ScraperService {
             ChapterModel(
               title: chapTitle,
               link: chapLink,
-              releaseDate: _timeAgo(rawDate),
+              releaseDate: timeAgo(rawDate),
             ),
           );
         }
@@ -108,29 +109,6 @@ class ScraperService {
     }
   }
 
-  String _timeAgo(String? dateStr) {
-    if (dateStr == null || dateStr.isEmpty) return '';
-    try {
-      final parsedDate = DateTime.parse(dateStr);
-      final difference = DateTime.now().difference(parsedDate);
-
-      if (difference.inDays > 365) {
-        return '${(difference.inDays / 365).floor()} tahun lalu';
-      } else if (difference.inDays > 30) {
-        return '${(difference.inDays / 30).floor()} bulan lalu';
-      } else if (difference.inDays > 0) {
-        return '${difference.inDays} hari lalu';
-      } else if (difference.inHours > 0) {
-        return '${difference.inHours} jam lalu';
-      } else if (difference.inMinutes > 0) {
-        return '${difference.inMinutes} menit lalu';
-      } else {
-        return 'Baru saja';
-      }
-    } catch (e) {
-      return dateStr; // Fallback jika tidak standard
-    }
-  }
 
   Future<ReaderData> getReaderDataBE(String chapterApiUrl) async {
     String seriesSlug = '';
@@ -273,6 +251,7 @@ class ScraperService {
           
           String? latestChapter;
           String? chapterLink;
+          String? updatedAt;
           
           final chapters = item['chapters'] ?? innerData['chapters'];
           if (chapters != null && chapters is List && chapters.isNotEmpty) {
@@ -281,6 +260,7 @@ class ScraperService {
             
             final chapTitle = chapData['title'];
             final chapIndex = firstChapter['chapterIndex'] ?? chapData['number'];
+            updatedAt = firstChapter['updatedAt'];
             
             latestChapter = chapTitle != null ? chapTitle.toString() : 'Chapter $chapIndex';
             if (latestChapter == 'Chapter null') {
@@ -315,6 +295,7 @@ class ScraperService {
             type: type,
             status: status,
             format: format,
+            updatedAt: updatedAt!= null?timeAgo(updatedAt):'',
           ));
         }
 
