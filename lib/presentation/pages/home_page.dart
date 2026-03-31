@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../data/models/comic_model.dart';
-import '../providers/comic_provider.dart';
+import '../providers/home_provider.dart';
 import '../widgets/comic_card.dart';
 import '../widgets/show_all_button.dart';
 import 'bookmark_page.dart';
@@ -63,7 +63,7 @@ class __HomeContentState extends State<_HomeContent> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<ComicProvider>().fetchHomeComics();
+      context.read<HomeProvider>().fetchHomeData();
     });
   }
 
@@ -156,14 +156,14 @@ class __HomeContentState extends State<_HomeContent> {
       appBar: AppBar(
         title: const Text('Maca Komik'),
       ),
-      body: Consumer<ComicProvider>(
+      body: Consumer<HomeProvider>(
         builder: (context, provider, child) {
           if (provider.isLoading && provider.homeComics.isEmpty && provider.popularComics.isEmpty) {
             return const Center(child: CircularProgressIndicator());
           }
 
           return RefreshIndicator(
-            onRefresh: () => provider.fetchHomeComics(),
+            onRefresh: () => provider.fetchHomeData(),
             child: SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.symmetric(vertical: 8),

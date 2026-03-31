@@ -3,7 +3,8 @@ import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:go_router/go_router.dart';
 import '../../data/models/comic_model.dart';
-import '../providers/comic_provider.dart';
+import '../providers/reader_provider.dart';
+import '../providers/library_provider.dart';
 
 class ReaderPage extends StatefulWidget {
   final String chapterUrl;
@@ -19,8 +20,27 @@ class _ReaderPageState extends State<ReaderPage> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<ComicProvider>().fetchReaderImages(widget.chapterUrl);
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final reader = context.read<ReaderProvider>();
+      final library = context.read<LibraryProvider>();
+      
+      await reader.fetchReaderImages(widget.chapterUrl);
+      
+      if (reader.detailComic != null) {
+        final comic = reader.detailComic!.comic;
+        final actIndexStr = widget.chapterUrl.split('/').lastWhere((e) => e.isNotEmpty, orElse: () => '');
+        
+        await library.saveHistory(ComicModel(
+          title: comic.title,
+          thumbUrl: comic.thumbUrl,
+          link: comic.link,
+          latestChapter: actIndexStr,
+          chapterLink: widget.chapterUrl,
+          type: reader.detailComic!.type,
+          status: reader.detailComic!.status,
+          format: reader.detailComic!.format,
+        ));
+      }
     });
   }
 
@@ -32,12 +52,12 @@ class _ReaderPageState extends State<ReaderPage> {
       appBar: AppBar(
         title: Text('Chapter $actIndexStr'),
         actions: [
-          Consumer<ComicProvider>(
-            builder: (context, provider, child) {
-              if (provider.readerComicLink.isEmpty || provider.detailComic == null) return const SizedBox.shrink();
+          Consumer2<ReaderProvider, LibraryProvider>(
+            builder: (context, readerProvider, libraryProvider, child) {
+              if (readerProvider.readerComicLink.isEmpty || readerProvider.detailComic == null) return const SizedBox.shrink();
 
               return FutureBuilder<bool>(
-                future: provider.isBookmarkedReader(provider.readerComicLink, actIndexStr),
+                future: libraryProvider.isBookmarkedReader(readerProvider.readerComicLink, actIndexStr),
                 builder: (context, snapshot) {
                   bool isBookmarked = snapshot.data ?? false;
                   return IconButton(
@@ -46,7 +66,7 @@ class _ReaderPageState extends State<ReaderPage> {
                       color: isBookmarked ? Colors.yellow : null,
                     ),
                     onPressed: () {
-                      final detail = provider.detailComic!;
+                      final detail = readerProvider.detailComic!;
                       final bookmarkModel = ComicModel(
                         title: detail.comic.title,
                         thumbUrl: detail.comic.thumbUrl,
@@ -57,8 +77,7 @@ class _ReaderPageState extends State<ReaderPage> {
                         status: detail.status,
                         format: detail.format,
                       );
-                      provider.toggleBookmarkReader(bookmarkModel);
-                      (context as Element).markNeedsBuild();
+                      libraryProvider.toggleChapterBookmark(bookmarkModel);
                     },
                   );
                 },
@@ -67,7 +86,7 @@ class _ReaderPageState extends State<ReaderPage> {
           ),
         ],
       ),
-      body: Consumer<ComicProvider>(
+      body: Consumer<ReaderProvider>(
         builder: (context, provider, child) {
           if (provider.isLoading) {
             return const Center(child: CircularProgressIndicator());
@@ -101,7 +120,7 @@ class _ReaderPageState extends State<ReaderPage> {
           );
         },
       ),
-      bottomNavigationBar: Consumer<ComicProvider>(
+      bottomNavigationBar: Consumer<ReaderProvider>(
         builder: (context, provider, child) {
           String? nextChapterUrl;
           String? prevChapterUrl;
@@ -111,11 +130,9 @@ class _ReaderPageState extends State<ReaderPage> {
             final currentIndex = chapters.indexWhere((c) => c.link == widget.chapterUrl);
             if (currentIndex != -1) {
               if (currentIndex > 0) {
-                // Usually newer chapters are earlier in list, so index - 1 is the next chapter functionally
                 nextChapterUrl = chapters[currentIndex - 1].link;
               }
               if (currentIndex < chapters.length - 1) {
-                // Older chapters are later in the list, so index + 1 is the previous chapter functionally
                 prevChapterUrl = chapters[currentIndex + 1].link;
               }
             }

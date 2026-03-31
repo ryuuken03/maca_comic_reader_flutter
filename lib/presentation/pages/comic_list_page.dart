@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../data/models/comic_model.dart';
 import '../../data/models/genre_model.dart';
-import '../../data/services/scraper_service.dart';
+import '../providers/home_provider.dart';
 import '../widgets/comic_card.dart';
 import '../widgets/genre_chip.dart';
 import '../widgets/search_input.dart';
@@ -23,17 +24,12 @@ class ComicListPage extends StatefulWidget {
 }
 
 class _ComicListPageState extends State<ComicListPage> {
-  final ScraperService _scraperService = ScraperService();
   final ScrollController _scrollController = ScrollController();
   final TextEditingController _searchController = TextEditingController();
   
-  List<ComicModel> _comics = [];
   String _searchQuery = '';
   List<String> _selectedGenreIds = [];
-  bool _isLoading = true;
-  bool _isFetchingMore = false;
   int _currentPage = 1;
-  bool _hasNextPage = true;
 
   @override
   void initState() {
@@ -43,45 +39,37 @@ class _ComicListPageState extends State<ComicListPage> {
   }
 
   Future<void> _showFilterDialog() async {
-    List<GenreModel> allGenres = [];
-    bool isDialogLoading = true;
-
-    // Fetch genres
-    try {
-      allGenres = await _scraperService.getGenres();
-    } catch (e) {
-      debugPrint("Error fetching genres for dialog: $e");
-    }
+    final provider = context.read<HomeProvider>();
+    provider.fetchGenres();
 
     if (!mounted) return;
 
     await showDialog(
       context: context,
       builder: (BuildContext context) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
+        return Consumer<HomeProvider>(
+          builder: (context, provider, child) {
             return AlertDialog(
               title: const Text('Filter Genre'),
               content: SizedBox(
                 width: double.maxFinite,
-                child: allGenres.isEmpty
+                child: provider.genres.isEmpty
                     ? const Center(child: CircularProgressIndicator())
                     : SingleChildScrollView(
                         child: Wrap(
                           spacing: 8.0,
-                          children: allGenres.map((genre) {
+                          children: provider.genres.map((genre) {
                             final isSelected = _selectedGenreIds.contains(genre.name.toString());
                             return GenreChip(
                               label: genre.name,
                               isSelected: isSelected,
                               onSelected: (bool selected) {
-                                setDialogState(() {
-                                  if (selected) {
-                                    _selectedGenreIds.add(genre.name.toString());
-                                  } else {
-                                    _selectedGenreIds.remove(genre.name.toString());
-                                  }
-                                });
+                                if (selected) {
+                                  _selectedGenreIds.add(genre.name.toString());
+                                } else {
+                                  _selectedGenreIds.remove(genre.name.toString());
+                                }
+                                (context as Element).markNeedsBuild();
                               },
                             );
                           }).toList(),
@@ -113,7 +101,6 @@ class _ComicListPageState extends State<ComicListPage> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFFFDD644),
                     foregroundColor: Colors.black,
-                    surfaceTintColor: const Color(0xFFFDD644),
                   ),
                   child: const Text('Filter'),
                 ),
@@ -126,84 +113,28 @@ class _ComicListPageState extends State<ComicListPage> {
   }
 
   Future<void> _fetchInitialData() async {
-    setState(() {
-      _isLoading = true;
-      _currentPage = 1;
-      _hasNextPage = true;
-      _comics.clear();
-    });
-
-    try {
-      var results = await _scraperService.fetchSeries(
-        searchQuery: _searchQuery,
-        genres: _selectedGenreIds,
-        page: _currentPage,
-        preset: widget.preset ?? '',
-        type: widget.type,
-        take: 20,
-      );
-      // if(widget.type == null && widget.preset == 'rilisan_terbaru'){
-      //
-      //   var results = await _scraperService.fetchSeries(
-      //     searchQuery: _searchQuery,
-      //     genres: _selectedGenreIds,
-      //     page: _currentPage,
-      //     preset: widget.preset ?? '',
-      //     type: widget.type,
-      //     take: 20,
-      //   );
-      // }
-      setState(() {
-        _comics = results;
-        if (results.isEmpty) {
-          _hasNextPage = false;
-        }
-      });
-    } catch (e) {
-      debugPrint('Error fetching initial: $e');
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
-    }
+    _currentPage = 1;
+    context.read<HomeProvider>().fetchDiscover(
+      searchQuery: _searchQuery,
+      genres: _selectedGenreIds,
+      page: _currentPage,
+      preset: widget.preset,
+      type: widget.type,
+    );
   }
 
   Future<void> _fetchMoreData() async {
-    if (_isFetchingMore || !_hasNextPage || _isLoading) return;
+    final provider = context.read<HomeProvider>();
+    if (provider.isLoading || !provider.hasNextPage) return;
 
-    setState(() {
-      _isFetchingMore = true;
-    });
-
-    try {
-      _currentPage++;
-      final results = await _scraperService.fetchSeries(
-        searchQuery: _searchQuery,
-        genres: _selectedGenreIds,
-        page: _currentPage,
-        preset: widget.preset ?? '',
-        type: widget.type,
-        take: 20,
-      );
-      setState(() {
-        if (results.isEmpty) {
-          _hasNextPage = false;
-        } else {
-          _comics.addAll(results);
-        }
-      });
-    } catch (e) {
-      debugPrint('Error fetching more: $e');
-      _currentPage--;
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isFetchingMore = false;
-        });
-      }
-    }
+    _currentPage++;
+    provider.fetchDiscover(
+      searchQuery: _searchQuery,
+      genres: _selectedGenreIds,
+      page: _currentPage,
+      preset: widget.preset,
+      type: widget.type,
+    );
   }
 
   void _onScroll() {
@@ -255,35 +186,43 @@ class _ComicListPageState extends State<ComicListPage> {
           ),
         ),
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _comics.isEmpty
-              ? const Center(child: Text('Tidak ada komik ditemukan'))
-              : Column(
-                  children: [
-                    Expanded(
-                      child: GridView.builder(
-                        controller: _scrollController,
-                        padding: const EdgeInsets.all(16),
-                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                          childAspectRatio: 0.7,
-                          crossAxisSpacing: 8,
-                          mainAxisSpacing: 8,
-                        ),
-                        itemCount: _comics.length,
-                        itemBuilder: (context, index) {
-                          return ComicCard(comic: _comics[index]);
-                        },
-                      ),
-                    ),
-                    if (_isFetchingMore)
-                      const Padding(
-                        padding: EdgeInsets.all(8.0),
-                        child: Center(child: CircularProgressIndicator()),
-                      ),
-                  ],
+      body: Consumer<HomeProvider>(
+        builder: (context, provider, child) {
+          if (provider.isLoading && provider.discoverComics.isEmpty) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          
+          if (provider.discoverComics.isEmpty) {
+            return const Center(child: Text('Tidak ada komik ditemukan'));
+          }
+
+          return Column(
+            children: [
+              Expanded(
+                child: GridView.builder(
+                  controller: _scrollController,
+                  padding: const EdgeInsets.all(16),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    childAspectRatio: 0.7,
+                    crossAxisSpacing: 8,
+                    mainAxisSpacing: 8,
+                  ),
+                  itemCount: provider.discoverComics.length,
+                  itemBuilder: (context, index) {
+                    return ComicCard(comic: provider.discoverComics[index]);
+                  },
                 ),
+              ),
+              if (provider.isLoading)
+                const Padding(
+                  padding: EdgeInsets.all(8.0),
+                  child: Center(child: CircularProgressIndicator()),
+                ),
+            ],
+          );
+        },
+      ),
     );
   }
 }

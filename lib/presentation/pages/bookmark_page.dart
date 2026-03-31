@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
-import '../providers/comic_provider.dart';
+import '../providers/library_provider.dart';
 import '../widgets/comic_card.dart';
 import '../widgets/delete_confirmation_dialog.dart';
 import '../widgets/search_input.dart';
@@ -27,7 +27,7 @@ class _BookmarkPageState extends State<BookmarkPage> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<ComicProvider>().fetchBookmarks();
+      context.read<LibraryProvider>().fetchBookmarks();
     });
   }
 
@@ -37,7 +37,7 @@ class _BookmarkPageState extends State<BookmarkPage> {
       appBar: AppBar(
         title: const Text('Komik Tersimpan'),
         actions: [
-          Consumer<ComicProvider>(
+          Consumer<LibraryProvider>(
             builder: (context, provider, _) {
               if (provider.bookmarks.isEmpty) return const SizedBox.shrink();
               return IconButton(
@@ -50,7 +50,7 @@ class _BookmarkPageState extends State<BookmarkPage> {
                       return DeleteConfirmationDialog(
                         title: 'Hapus Tersimpan',
                         content: 'Apakah Anda yakin ingin menghapus semua komik tersimpan?',
-                        onConfirm: () => context.read<ComicProvider>().clearBookmarks(),
+                        onConfirm: () => context.read<LibraryProvider>().clearBookmarks(),
                       );
                     },
                   );
@@ -75,7 +75,7 @@ class _BookmarkPageState extends State<BookmarkPage> {
           ),
         ),
       ),
-      body: Consumer<ComicProvider>(
+      body: Consumer<LibraryProvider>(
         builder: (context, provider, child) {
           final bookmarkList = provider.bookmarks.where((comic) {
              return comic.title.toLowerCase().contains(_searchQuery.toLowerCase());
@@ -109,7 +109,7 @@ class _BookmarkPageState extends State<BookmarkPage> {
                       return DeleteConfirmationDialog(
                         title: 'Hapus Tersimpan',
                         content: 'Apakah Anda yakin ingin menghapus "${comic.title}" dari daftar tersimpan?',
-                        onConfirm: () => context.read<ComicProvider>().removeBookmark(comic.link),
+                        onConfirm: () => context.read<LibraryProvider>().removeBookmark(comic.link),
                       );
                     },
                   );

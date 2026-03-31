@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
-import '../providers/comic_provider.dart';
+import '../providers/library_provider.dart';
 import '../widgets/comic_card.dart';
 import '../widgets/delete_confirmation_dialog.dart';
 import '../widgets/search_input.dart';
@@ -27,7 +27,7 @@ class _HistoryPageState extends State<HistoryPage> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<ComicProvider>().fetchHistory();
+      context.read<LibraryProvider>().fetchHistory();
     });
   }
 
@@ -37,7 +37,7 @@ class _HistoryPageState extends State<HistoryPage> {
       appBar: AppBar(
         title: const Text('Riwayat Baca'),
         actions: [
-          Consumer<ComicProvider>(
+          Consumer<LibraryProvider>(
             builder: (context, provider, _) {
               if (provider.history.isEmpty) return const SizedBox.shrink();
               return IconButton(
@@ -50,7 +50,7 @@ class _HistoryPageState extends State<HistoryPage> {
                       return DeleteConfirmationDialog(
                         title: 'Hapus Riwayat',
                         content: 'Apakah Anda yakin ingin menghapus semua riwayat?',
-                        onConfirm: () => context.read<ComicProvider>().clearHistory(),
+                        onConfirm: () => context.read<LibraryProvider>().clearHistory(),
                       );
                     },
                   );
@@ -75,7 +75,7 @@ class _HistoryPageState extends State<HistoryPage> {
           ),
         ),
       ),
-      body: Consumer<ComicProvider>(
+      body: Consumer<LibraryProvider>(
         builder: (context, provider, child) {
           final historyList = provider.history.where((comic) {
              return comic.title.toLowerCase().contains(_searchQuery.toLowerCase());
@@ -109,7 +109,7 @@ class _HistoryPageState extends State<HistoryPage> {
                       return DeleteConfirmationDialog(
                         title: 'Hapus Riwayat',
                         content: 'Apakah Anda yakin ingin menghapus "${comic.title}" dari riwayat?',
-                        onConfirm: () => context.read<ComicProvider>().removeHistory(comic.link),
+                        onConfirm: () => context.read<LibraryProvider>().removeHistory(comic.link),
                       );
                     },
                   );

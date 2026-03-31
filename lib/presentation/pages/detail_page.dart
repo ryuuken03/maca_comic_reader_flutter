@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../data/models/comic_model.dart';
-import '../providers/comic_provider.dart';
+import '../providers/detail_provider.dart';
+import '../providers/library_provider.dart';
 import '../widgets/chapter_tile.dart';
 import '../widgets/genre_chip.dart';
 import '../widgets/search_input.dart';
@@ -31,8 +32,8 @@ class _DetailPageState extends State<DetailPage> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<ComicProvider>().fetchDetailComic(widget.comicUrl);
-      context.read<ComicProvider>().fetchBookmarks();
+      context.read<DetailProvider>().fetchDetail(widget.comicUrl);
+      context.read<LibraryProvider>().fetchBookmarks();
     });
   }
 
@@ -42,12 +43,12 @@ class _DetailPageState extends State<DetailPage> {
       appBar: AppBar(
         title: const Text('Detail Komik'),
         actions: [
-          Consumer<ComicProvider>(
-            builder: (context, provider, child) {
-              if (provider.detailComic == null) return const SizedBox.shrink();
+          Consumer2<DetailProvider, LibraryProvider>(
+            builder: (context, detailProvider, libraryProvider, child) {
+              if (detailProvider.detailComic == null) return const SizedBox.shrink();
 
               return FutureBuilder<bool>(
-                future: provider.isBookmarked(widget.comicUrl),
+                future: libraryProvider.isBookmarked(widget.comicUrl),
                 builder: (context, snapshot) {
                   bool isBookmarked = snapshot.data ?? false;
                   return IconButton(
@@ -56,7 +57,7 @@ class _DetailPageState extends State<DetailPage> {
                       color: isBookmarked ? const Color(0xFFFDD644) : null,
                     ),
                     onPressed: () {
-                      final detail = provider.detailComic!;
+                      final detail = detailProvider.detailComic!;
                       final bookmarkModel = ComicModel(
                         title: detail.comic.title,
                         thumbUrl: detail.comic.thumbUrl,
@@ -67,9 +68,7 @@ class _DetailPageState extends State<DetailPage> {
                         status: detail.status,
                         format: detail.format,
                       );
-                      provider.toggleBookmark(bookmarkModel);
-                      // Memaksa state build ulang saat ikon di-tap
-                      (context as Element).markNeedsBuild();
+                      libraryProvider.toggleBookmark(bookmarkModel);
                     },
                   );
                 },
@@ -78,7 +77,7 @@ class _DetailPageState extends State<DetailPage> {
           ),
         ],
       ),
-      body: Consumer<ComicProvider>(
+      body: Consumer<DetailProvider>(
         builder: (context, provider, child) {
           if (provider.isLoading || provider.detailComic == null) {
             return const Center(child: CircularProgressIndicator());
@@ -114,7 +113,7 @@ class _DetailPageState extends State<DetailPage> {
                                 errorWidget: (context, url, error) =>
                                     const Icon(Icons.error),
                               ),
-                              if (detail.format.toLowerCase() == 'manga' || detail.format.toLowerCase() == 'manhwa' || detail.format.toLowerCase() == 'manhua')
+                              if (detail.comic.formatEmoji.isNotEmpty)
                                 Positioned(
                                   bottom: 4,
                                   right: 4,
@@ -125,8 +124,7 @@ class _DetailPageState extends State<DetailPage> {
                                       borderRadius: BorderRadius.circular(4),
                                     ),
                                     child: Text(
-                                      detail.format.toLowerCase() == 'manga' ? '🇯🇵' :
-                                      detail.format.toLowerCase() == 'manhwa' ? '🇰🇷' : '🇨🇳',
+                                      detail.comic.formatEmoji,
                                       style: const TextStyle(fontSize: 16),
                                     ),
                                   ),
@@ -152,20 +150,20 @@ class _DetailPageState extends State<DetailPage> {
                               spacing: 8.0,
                               runSpacing: 4.0,
                               children: [
-                                if (detail.status.isNotEmpty)
+                                if (detail.comic.statusLabel.isNotEmpty)
                                   Chip(
                                     label: Text(
-                                      detail.status.toUpperCase(),
+                                      detail.comic.statusLabel,
                                       style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
                                     ),
                                     padding: EdgeInsets.zero,
                                     visualDensity: VisualDensity.compact,
                                     backgroundColor: Colors.blue.withOpacity(0.1),
                                   ),
-                                  if (detail.type.isNotEmpty)
+                                  if (detail.comic.typeLabel.isNotEmpty)
                                     Chip(
                                       label: Text(
-                                        detail.type.toUpperCase(),
+                                        detail.comic.typeLabel,
                                         style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
                                       ),
                                       padding: EdgeInsets.zero,
