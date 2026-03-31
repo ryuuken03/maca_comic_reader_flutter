@@ -262,10 +262,7 @@ class ScraperService {
             final chapIndex = firstChapter['chapterIndex'] ?? chapData['number'];
             updatedAt = firstChapter['updatedAt'];
             
-            latestChapter = chapTitle != null ? chapTitle.toString() : 'Chapter $chapIndex';
-            if (latestChapter == 'Chapter null') {
-              latestChapter = 'Chapter ${firstChapter['id']}';
-            }
+            latestChapter = '$chapIndex';
             
             final chapterSlug = chapData['slug'];
             if (chapterSlug != null) {
