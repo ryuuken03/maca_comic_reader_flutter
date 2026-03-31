@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import '../../data/models/chapter_model.dart';
-import '../providers/comic_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
+import '../../data/models/chapter_model.dart';
+import '../providers/library_provider.dart';
 
 class ChapterTile extends StatelessWidget {
   final ChapterModel chapter;
@@ -17,10 +17,10 @@ class ChapterTile extends StatelessWidget {
     return ListTile(
       title: Text(chapter.title),
       subtitle: chapter.releaseDate != null ? Text(chapter.releaseDate!) : null,
-      trailing: Consumer<ComicProvider>(
-        builder: (context, provider, child) {
+      trailing: Consumer<LibraryProvider>(
+        builder: (context, library, child) {
           return FutureBuilder<bool>(
-            future: provider.isBookmarkedReader(comicUrl, actIndexStr),
+            future: library.isBookmarkedReader(comicUrl, actIndexStr),
             builder: (context, snapshot) {
               final isBookmarked = snapshot.data ?? false;
               return Row(
