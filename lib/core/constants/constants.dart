@@ -1,6 +1,14 @@
+import 'package:flutter/material.dart';
+
 class AppConstants {
   static const String baseUrl = 'https://v1.komikcast.fit';
   static const String apiBaseUrl = 'https://be.komikcast.cc';
+
+  // UI Colors
+  static const Color primaryColor = Color(0xFFFDD644);
+  static const Color scaffoldDarkBackground = Color(0xFF121212);
+  static const Color appBarDarkBackground = Color(0xFF1E1E1E);
+  static const Color cardDarkBackground = Color(0xFF1E1E1E);
 
   // Selectors with fallbacks for MangaStream / Komikcast changes
   static const String homeListSelector = '.list-update .utao, .listupd .bs, .listo .bsx, .bigor';
