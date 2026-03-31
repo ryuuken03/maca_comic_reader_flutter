@@ -50,4 +50,19 @@ class ComicModel {
   }
 
   void operator []=(String other, String value) {}
+
+  String get formatEmoji {
+    final f = format.toLowerCase();
+    if (f.contains('manga')) return '🇯🇵';
+    if (f.contains('manhwa')) return '🇰🇷';
+    if (f.contains('manhua')) return '🇨🇳';
+    return '';
+  }
+
+  String get statusLabel => status.toUpperCase();
+  String get typeLabel => type.toUpperCase();
+
+  bool get isManga => format.toLowerCase().contains('manga');
+  bool get isManhwa => format.toLowerCase().contains('manhwa');
+  bool get isManhua => format.toLowerCase().contains('manhua');
 }
