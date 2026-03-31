@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
-import 'presentation/providers/comic_provider.dart';
+import 'presentation/providers/home_provider.dart';
+import 'presentation/providers/detail_provider.dart';
+import 'presentation/providers/reader_provider.dart';
+import 'presentation/providers/library_provider.dart';
 import 'presentation/pages/home_page.dart';
 import 'presentation/pages/detail_page.dart';
 import 'presentation/pages/reader_page.dart';
@@ -11,7 +14,12 @@ import 'presentation/pages/comic_list_page.dart';
 void main() {
   runApp(
     MultiProvider(
-      providers: [ChangeNotifierProvider(create: (_) => ComicProvider())],
+      providers: [
+        ChangeNotifierProvider(create: (_) => HomeProvider()),
+        ChangeNotifierProvider(create: (_) => DetailProvider()),
+        ChangeNotifierProvider(create: (_) => ReaderProvider()),
+        ChangeNotifierProvider(create: (_) => LibraryProvider()),
+      ],
       child: const MyApp(),
     ),
   );
@@ -73,6 +81,9 @@ class MyApp extends StatelessWidget {
         appBarTheme: const AppBarTheme(
           backgroundColor: Color(0xFF1E1E1E),
           foregroundColor: Colors.white,
+          elevation: 0,
+          scrolledUnderElevation: 0,
+          surfaceTintColor: Colors.transparent,
           centerTitle: true,
         ),
       ),
