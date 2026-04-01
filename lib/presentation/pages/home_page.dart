@@ -91,11 +91,7 @@ class __HomeContentState extends State<_HomeContent> {
   Widget _buildShowAllButton(BuildContext context, String title, {String? preset, String? type}) {
     return ShowAllButton(
       onTap: () {
-        context.push('/comic-list', extra: {
-          'title': title,
-          'preset': preset,
-          'type': type,
-        });
+        context.push('/list', extra: {'title': title, 'preset': preset, 'type': type});
       },
     );
   }
