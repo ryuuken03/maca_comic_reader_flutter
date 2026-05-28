@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../data/models/comic_model.dart';
@@ -33,68 +34,79 @@ class ComicCard extends StatelessWidget {
               errorWidget: (context, url, error) => const Center(child: Icon(Icons.error)),
             ),
             
-            // Bottom Info Overlay
+            // Bottom Info Overlay with Glassmorphism
             Positioned(
               bottom: 0,
               left: 0,
               right: 0,
-              child: Container(
-                padding: const EdgeInsets.all(8.0),
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.65), // background darkmode 65%
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Chips (Status/Type)
-                    if (comic.statusLabel.isNotEmpty || comic.typeLabel.isNotEmpty) ...[
-                      Wrap(
-                        spacing: 4.0,
-                        runSpacing: 4.0,
-                        children: [
-                          if (comic.statusLabel.isNotEmpty)
-                            _buildChip(comic.statusLabel, Colors.blue),
-                          if (comic.typeLabel.isNotEmpty)
-                            _buildChip(comic.typeLabel, Colors.orange),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                    ],
-                    
-                    // Title
-                    SizedBox(
-                      height: 36, // Fix height for 2 lines
-                      child: Text(
-                        comic.title,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13,
-                          color: Colors.white,
-                          shadows: [
-                            Shadow(offset: Offset(0, 1), blurRadius: 2.0, color: Colors.black),
-                          ],
+              child: ClipRRect(
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 8.0, sigmaY: 8.0),
+                  child: Container(
+                    padding: const EdgeInsets.all(8.0),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.45), // 45% translucent black
+                      border: Border(
+                        top: BorderSide(
+                          color: Colors.white.withOpacity(0.15),
+                          width: 0.5,
                         ),
                       ),
                     ),
-                    
-                    // Chapter
-                    const SizedBox(height: 2),
-                    Text(
-                      (comic.latestChapter == null || comic.latestChapter!.isEmpty)
-                          ? ''
-                          : (comic.latestChapter!.toLowerCase().contains('chapter')
-                              ? comic.latestChapter!
-                              : 'Ch. ${comic.latestChapter!}'),
-                      style: const TextStyle(
-                        fontSize: 11,
-                        color: Colors.white70,
-                        fontWeight: FontWeight.w500,
-                      ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Chips (Status/Type)
+                        if (comic.statusLabel.isNotEmpty || comic.typeLabel.isNotEmpty) ...[
+                          Wrap(
+                            spacing: 4.0,
+                            runSpacing: 4.0,
+                            children: [
+                              if (comic.statusLabel.isNotEmpty)
+                                _buildChip(comic.statusLabel, Colors.blue),
+                              if (comic.typeLabel.isNotEmpty)
+                                _buildChip(comic.typeLabel, Colors.orange),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                        ],
+                        
+                        // Title
+                        SizedBox(
+                          height: 36, // Fix height for 2 lines
+                          child: Text(
+                            comic.title,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                              color: Colors.white,
+                              shadows: [
+                                Shadow(offset: Offset(0, 1), blurRadius: 2.0, color: Colors.black),
+                              ],
+                            ),
+                          ),
+                        ),
+                        
+                        // Chapter
+                        const SizedBox(height: 2),
+                        Text(
+                          (comic.latestChapter == null || comic.latestChapter!.isEmpty)
+                              ? ''
+                              : (comic.latestChapter!.toLowerCase().contains('chapter')
+                                  ? comic.latestChapter!
+                                  : 'Ch. ${comic.latestChapter!}'),
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: Colors.white70,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
               ),
             ),
