@@ -8,11 +8,21 @@ import '../models/genre_model.dart';
 import '../../util/util.dart';
 
 class ScraperService {
+  final http.Client _client = http.Client();
+
   Map<String, String> get _headers => {
         'User-Agent':
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'Accept': 'application/json, text/plain, */*',
-        'Referer': '${AppConstants.baseUrl}/',
+        'Accept-Language': 'en-US,en;q=0.9,id;q=0.8',
+        'referer': '${AppConstants.baseUrl}/',
+        'origin': AppConstants.baseUrl,
+        'sec-ch-ua': '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
+        'sec-ch-ua-mobile': '?0',
+        'sec-ch-ua-platform': '"Windows"',
+        'sec-fetch-dest': 'empty',
+        'sec-fetch-mode': 'cors',
+        'sec-fetch-site': 'cross-site',
       };
   
   Future<DetailComicModel> getDetailComic(String url) async {
@@ -25,8 +35,8 @@ class ScraperService {
     final chaptersApiUrl = '${AppConstants.apiBaseUrl}/series/$slug/chapters';
 
     final responses = await Future.wait([
-      http.get(Uri.parse(apiUrl), headers: _headers),
-      http.get(Uri.parse(chaptersApiUrl), headers: _headers),
+      _client.get(Uri.parse(apiUrl), headers: _headers),
+      _client.get(Uri.parse(chaptersApiUrl), headers: _headers),
     ]);
 
     final detailRes = responses[0];
@@ -111,35 +121,18 @@ class ScraperService {
 
 
   Future<ReaderData> getReaderDataBE(String chapterApiUrl) async {
-    String seriesSlug = '';
-    if (chapterApiUrl.contains('/series/')) {
-       final parts = chapterApiUrl.split('/series/').last.split('/');
-       if (parts.isNotEmpty) {
-          seriesSlug = parts.first;
-       }
-    }
-
     // Jika URL yang diklik bukan pola API (karena bookmark lama di DB), kembalikan fallback atau paksa ubah
     if (!chapterApiUrl.startsWith('${AppConstants.apiBaseUrl}/')) {
        throw Exception('Endpoint API tidak dikenali. Coba muat ulang daftar episode.');
     }
 
-    final seriesApiUrl = '${AppConstants.apiBaseUrl}/series/$seriesSlug?includeMeta=true';
+    final response = await _client.get(Uri.parse(chapterApiUrl), headers: _headers);
     
-    final responses = await Future.wait([
-      http.get(Uri.parse(chapterApiUrl), headers: _headers),
-      http.get(Uri.parse(seriesApiUrl), headers: _headers),
-    ]);
-    
-    final chapRes = responses[0];
-    final seriesRes = responses[1];
-
-    if (chapRes.statusCode != 200) {
-      throw Exception('Gagal memuat chapter info (Status: ${chapRes.statusCode})');
+    if (response.statusCode != 200) {
+      throw Exception('Gagal memuat chapter info (Status: ${response.statusCode})');
     }
     
-    final chapJson = jsonDecode(chapRes.body);
-    final seriesJson = jsonDecode(seriesRes.body);
+    final chapJson = jsonDecode(response.body);
 
     List<String> images = [];
     if (chapJson['data'] != null && chapJson['data']['data'] != null && chapJson['data']['data']['images'] is List) {
@@ -148,17 +141,7 @@ class ScraperService {
        }
     }
     
-    String title = '';
-    String seriesLink = '';
-    if (seriesJson['data'] != null) {
-       final inner = seriesJson['data']['data'] ?? seriesJson['data'];
-       title = inner['title'] ?? inner['name'] ?? 'Membaca Chapter';
-       if (seriesSlug.isNotEmpty) {
-          seriesLink = '${AppConstants.baseUrl}/komik/$seriesSlug';
-       }
-    }
-    
-    return ReaderData(images: images, title: title, seriesLink: seriesLink);
+    return ReaderData(images: images);
   }
 
   Future<List<ComicModel>> fetchSeries({
@@ -218,7 +201,7 @@ class ScraperService {
     Uri uri = Uri.parse('${AppConstants.apiBaseUrl}/series').replace(queryParameters: queryParameters);
 
     try {
-      final response = await http.get(uri, headers: _headers);
+      final response = await _client.get(uri, headers: _headers);
 
       if (response.statusCode == 200) {
         final jsonResponse = json.decode(response.body);
@@ -298,7 +281,9 @@ class ScraperService {
 
         return comics;
       } else {
-        throw Exception('Gagal memuat data');
+        print('FetchSeries Error Status: ${response.statusCode}');
+        print('FetchSeries Error Body: ${response.body}');
+        throw Exception('Gagal memuat data1');
       }
     } catch (e) {
       print("Error: $e");
@@ -309,7 +294,7 @@ class ScraperService {
   Future<List<GenreModel>> getGenres() async {
     Uri uri = Uri.parse('${AppConstants.apiBaseUrl}/genres');
     try {
-      final response = await http.get(uri, headers: _headers);
+      final response = await _client.get(uri, headers: _headers);
 
       if (response.statusCode == 200) {
         final jsonResponse = json.decode(response.body);
@@ -340,7 +325,5 @@ class ScraperService {
 
 class ReaderData {
   final List<String> images;
-  final String title;
-  final String seriesLink;
-  ReaderData({required this.images, required this.title, required this.seriesLink});
+  ReaderData({required this.images});
 }
