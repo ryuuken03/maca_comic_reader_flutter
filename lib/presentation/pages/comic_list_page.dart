@@ -4,8 +4,8 @@ import '../../data/models/comic_model.dart';
 import '../../data/models/genre_model.dart';
 import '../providers/home_provider.dart';
 import '../widgets/comic_card.dart';
-import '../widgets/genre_chip.dart';
 import '../widgets/search_input.dart';
+import '../widgets/genre_filter_dialog.dart';
 
 class ComicListPage extends StatefulWidget {
   final String title;
@@ -39,77 +39,21 @@ class _ComicListPageState extends State<ComicListPage> {
   }
 
   Future<void> _showFilterDialog() async {
-    final provider = context.read<HomeProvider>();
-    provider.fetchGenres();
-
-    if (!mounted) return;
-
-    await showDialog(
+    final result = await showDialog<List<String>>(
       context: context,
       builder: (BuildContext context) {
-        return Consumer<HomeProvider>(
-          builder: (context, provider, child) {
-            return AlertDialog(
-              title: const Text('Filter Genre'),
-              content: SizedBox(
-                width: double.maxFinite,
-                child: provider.genres.isEmpty
-                    ? const Center(child: CircularProgressIndicator())
-                    : SingleChildScrollView(
-                        child: Wrap(
-                          spacing: 8.0,
-                          children: provider.genres.map((genre) {
-                            final isSelected = _selectedGenreIds.contains(genre.name.toString());
-                            return GenreChip(
-                              label: genre.name,
-                              isSelected: isSelected,
-                              onSelected: (bool selected) {
-                                if (selected) {
-                                  _selectedGenreIds.add(genre.name.toString());
-                                } else {
-                                  _selectedGenreIds.remove(genre.name.toString());
-                                }
-                                (context as Element).markNeedsBuild();
-                              },
-                            );
-                          }).toList(),
-                        ),
-                      ),
-              ),
-              actions: [
-                if(_selectedGenreIds.isNotEmpty)...[
-                  TextButton(
-                    onPressed: () {
-                      setState(() {
-                        _selectedGenreIds.clear();
-                      });
-                      Navigator.pop(context);
-                      _fetchInitialData();
-                    },
-                    child: const Text('Clear', style: TextStyle(color: Colors.red)),
-                  ),
-                ],
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Cancel'),
-                ),
-                ElevatedButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                    _fetchInitialData();
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFFDD644),
-                    foregroundColor: Colors.black,
-                  ),
-                  child: const Text('Filter'),
-                ),
-              ],
-            );
-          },
+        return GenreFilterDialog(
+          initialSelectedGenreIds: _selectedGenreIds,
         );
       },
     );
+
+    if (result != null) {
+      setState(() {
+        _selectedGenreIds = result;
+      });
+      _fetchInitialData();
+    }
   }
 
   Future<void> _fetchInitialData() async {

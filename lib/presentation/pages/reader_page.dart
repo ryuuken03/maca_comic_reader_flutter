@@ -21,10 +21,12 @@ class _ReaderPageState extends State<ReaderPage> {
   Timer? _loadingTimer;
   bool _isTimeout = false;
   late ReaderProvider _readerProvider;
+  late ScrollController _scrollController;
 
   @override
   void initState() {
     super.initState();
+    _scrollController = ScrollController();
     _readerProvider = context.read<ReaderProvider>();
     _readerProvider.addListener(_onProviderChanged);
     _startLoad();
@@ -34,6 +36,7 @@ class _ReaderPageState extends State<ReaderPage> {
   void dispose() {
     _readerProvider.removeListener(_onProviderChanged);
     _loadingTimer?.cancel();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -170,12 +173,19 @@ class _ReaderPageState extends State<ReaderPage> {
             );
           }
 
-          return ListView.builder(
-            padding: EdgeInsets.zero,
-            itemCount: provider.readerImages.length,
-            itemBuilder: (context, index) {
-              return _RetryableImage(imageUrl: provider.readerImages[index]);
-            },
+          return Scrollbar(
+            controller: _scrollController,
+            interactive: true,
+            thickness: 6.0,
+            radius: const Radius.circular(3.0),
+            child: ListView.builder(
+              controller: _scrollController,
+              padding: EdgeInsets.zero,
+              itemCount: provider.readerImages.length,
+              itemBuilder: (context, index) {
+                return _RetryableImage(imageUrl: provider.readerImages[index]);
+              },
+            ),
           );
         },
       ),
@@ -294,15 +304,15 @@ class __RetryableImageState extends State<_RetryableImage> {
   Widget build(BuildContext context) {
     return KeyedSubtree(
       key: ValueKey('${widget.imageUrl}_$_retryKey'),
-      child: GestureDetector(
-        onDoubleTapDown: (details) {
-          _doubleTapDetails = details;
-        },
-        onDoubleTap: _handleDoubleTap,
-        child: InteractiveViewer(
-          transformationController: _transformationController,
-          minScale: 1.0,
-          maxScale: 4.0,
+      child: InteractiveViewer(
+        transformationController: _transformationController,
+        minScale: 1.0,
+        maxScale: 4.0,
+        child: GestureDetector(
+          onDoubleTapDown: (details) {
+            _doubleTapDetails = details;
+          },
+          onDoubleTap: _handleDoubleTap,
           child: CachedNetworkImage(
             imageUrl: widget.imageUrl,
             httpHeaders: const {

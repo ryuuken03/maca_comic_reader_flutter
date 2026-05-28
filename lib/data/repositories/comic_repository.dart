@@ -21,6 +21,7 @@ class ComicRepository {
     String? searchQuery,
     String? preset,
     String? type,
+    List<String>? genres,
     int page = 1,
     int take = 20,
   }) {
@@ -28,6 +29,7 @@ class ComicRepository {
       searchQuery: searchQuery,
       preset: preset,
       type: type,
+      genres: genres,
       page: page,
       take: take,
     );

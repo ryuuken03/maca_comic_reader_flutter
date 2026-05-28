@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../data/models/comic_model.dart';
+import '../../data/models/chapter_model.dart';
 import '../providers/detail_provider.dart';
 import '../providers/library_provider.dart';
 import '../widgets/chapter_tile.dart';
@@ -22,20 +23,40 @@ class _DetailPageState extends State<DetailPage> {
   bool _isExpanded = false;
   String _searchChapterQuery = '';
   final TextEditingController _searchController = TextEditingController();
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
-  }
+  late ScrollController _scrollController;
+  bool _showBackToTop = false;
+  bool _isAscending = false;
 
   @override
   void initState() {
     super.initState();
+    _scrollController = ScrollController();
+    _scrollController.addListener(() {
+      if (_scrollController.offset > 600) {
+        if (!_showBackToTop) {
+          setState(() {
+            _showBackToTop = true;
+          });
+        }
+      } else {
+        if (_showBackToTop) {
+          setState(() {
+            _showBackToTop = false;
+          });
+        }
+      }
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<DetailProvider>().fetchDetail(widget.comicUrl);
       context.read<LibraryProvider>().fetchBookmarks();
     });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _scrollController.dispose();
+    super.dispose();
   }
 
   @override
@@ -85,12 +106,27 @@ class _DetailPageState extends State<DetailPage> {
           }
 
           final detail = provider.detailComic!;
-          final filteredChapters = detail.chapters.where((chap) {
+          final libraryProvider = context.watch<LibraryProvider>();
+          final savedChapters = libraryProvider.bookmarks.where((b) {
+            return b.link == widget.comicUrl && b.latestChapter != null && b.chapterLink != null;
+          }).toList();
+
+          var filteredChapters = detail.chapters.where((chap) {
              return chap.title.toLowerCase().contains(_searchChapterQuery.toLowerCase());
           }).toList();
 
-          return CustomScrollView(
-            slivers: [
+          if (_isAscending) {
+            filteredChapters = filteredChapters.reversed.toList();
+          }
+
+          return Scrollbar(
+            controller: _scrollController,
+            interactive: true,
+            thickness: 6.0,
+            radius: const Radius.circular(3.0),
+            child: CustomScrollView(
+              controller: _scrollController,
+              slivers: [
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.all(16.0),
@@ -230,15 +266,64 @@ class _DetailPageState extends State<DetailPage> {
                   ),
                 ),
               ),
+              if (savedChapters.isNotEmpty)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 0.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 8),
+                        ListView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          padding: EdgeInsets.zero,
+                          itemCount: savedChapters.length,
+                          itemBuilder: (context, index) {
+                            final saved = savedChapters[index];
+                            final chap = ChapterModel(
+                              title: saved.latestChapter!.toLowerCase().contains('chapter')
+                                  ? saved.latestChapter!
+                                  : 'Chapter ${saved.latestChapter}',
+                              link: saved.chapterLink!,
+                              releaseDate: 'Tersimpan',
+                            );
+                            return ChapterTile(
+                              chapter: chap,
+                              comicUrl: widget.comicUrl,
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.all(16.0),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'List Chapter (${detail.chapters.length} chapter)',
-                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'List Chapter (${detail.chapters.length} chapter)',
+                            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                          ),
+                          IconButton(
+                            icon: Icon(
+                              _isAscending ? Icons.arrow_upward : Icons.arrow_downward,
+                              color: Theme.of(context).primaryColor,
+                            ),
+                            tooltip: _isAscending ? 'Urutan terlama' : 'Urutan terbaru',
+                            onPressed: () {
+                              setState(() {
+                                _isAscending = !_isAscending;
+                              });
+                            },
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 8),
                       SearchInput(
@@ -263,8 +348,33 @@ class _DetailPageState extends State<DetailPage> {
                 }, childCount: filteredChapters.length),
               ),
             ],
-          );
+          ),
+        );
         },
+      ),
+      floatingActionButton: AnimatedSlide(
+        offset: _showBackToTop ? Offset.zero : const Offset(0, 1.5),
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOutCubic,
+        child: AnimatedOpacity(
+          opacity: _showBackToTop ? 1.0 : 0.0,
+          duration: const Duration(milliseconds: 200),
+          child: FloatingActionButton(
+            mini: true,
+            backgroundColor: Theme.of(context).primaryColor,
+            foregroundColor: Colors.white,
+            onPressed: _showBackToTop
+                ? () {
+                    _scrollController.animateTo(
+                      0,
+                      duration: const Duration(milliseconds: 500),
+                      curve: Curves.easeInOut,
+                    );
+                  }
+                : null,
+            child: const Icon(Icons.keyboard_arrow_up),
+          ),
+        ),
       ),
     );
   }

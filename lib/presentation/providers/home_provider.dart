@@ -71,12 +71,15 @@ class HomeProvider with ChangeNotifier {
     }
     notifyListeners();
     try {
+      debugPrint('fetchDiscover Request: searchQuery=$searchQuery, preset=$preset, type=$type, genres=$genres, page=$page');
       final result = await _repository.fetchSeries(
         searchQuery: searchQuery,
         preset: preset,
         type: type,
+        genres: genres,
         page: page,
       );
+      debugPrint('fetchDiscover Response: received ${result.length} comics. Titles: ${result.take(5).map((c) => c.title).toList()}');
       if (result.isEmpty) {
         _hasNextPage = false;
       } else {
