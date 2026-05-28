@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/constants/constants.dart';
 import '../../data/models/comic_model.dart';
 import '../../data/models/detail_comic_model.dart';
 import '../../data/repositories/comic_repository.dart';
@@ -29,17 +30,50 @@ class ReaderProvider with ChangeNotifier {
     _detailComic = null;
     notifyListeners();
     try {
-      final readerData = await _repository.getReaderData(chapterUrl);
-      _readerImages = readerData.images;
-      _readerComicTitle = readerData.title;
-      _readerComicLink = readerData.seriesLink;
+      // 1. Get series slug and link synchronously from chapterUrl
+      String seriesSlug = '';
+      if (chapterUrl.contains('/series/')) {
+        final parts = chapterUrl.split('/series/').last.split('/');
+        if (parts.isNotEmpty) {
+          seriesSlug = parts.first;
+        }
+      }
+      final seriesLink = '${AppConstants.baseUrl}/komik/$seriesSlug';
 
-      // Fetch detail to support history saving with full metadata
-      _detailComic = await _repository.getDetailComic(readerData.seriesLink);
+      // 2. Start both requests in parallel
+      final readerFuture = _repository.getReaderData(chapterUrl);
+      final detailFuture = _repository.getDetailComic(seriesLink);
+
+      // 3. Await images first for instant loading
+      final readerData = await readerFuture;
+      _readerImages = readerData.images;
+      _isLoading = false;
+      notifyListeners();
+
+      // 4. Await detail in the background
+      final detailComic = await detailFuture;
+      _detailComic = detailComic;
+      _readerComicTitle = detailComic.comic.title;
+      _readerComicLink = detailComic.comic.link;
+
+      // Save history directly to local database
+      final actIndexStr = chapterUrl.split('/').lastWhere((e) => e.isNotEmpty, orElse: () => '');
+      await _repository.saveHistory(ComicModel(
+        title: detailComic.comic.title,
+        thumbUrl: detailComic.comic.thumbUrl,
+        link: detailComic.comic.link,
+        latestChapter: actIndexStr,
+        chapterLink: chapterUrl,
+        type: detailComic.type,
+        status: detailComic.status,
+        format: detailComic.format,
+      ));
+
+      notifyListeners();
     } catch (e) {
       debugPrint('Error fetchReaderImages: $e');
+      _isLoading = false;
+      notifyListeners();
     }
-    _isLoading = false;
-    notifyListeners();
   }
 }
