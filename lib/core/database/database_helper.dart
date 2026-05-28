@@ -18,7 +18,7 @@ class DatabaseHelper {
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, filePath);
 
-    return await openDatabase(path, version: 3, onCreate: _createDB, onUpgrade: _onUpgrade);
+    return await openDatabase(path, version: 4, onCreate: _createDB, onUpgrade: _onUpgrade);
   }
 
   Future _createDB(Database db, int version) async {
@@ -40,6 +40,8 @@ CREATE TABLE bookmarks (
   updatedAt $textTypeNull
 )
 ''');
+
+    await db.execute('CREATE INDEX idx_bookmarks_link ON bookmarks (link)');
 
     await db.execute('''
 CREATE TABLE history (
@@ -84,6 +86,10 @@ CREATE TABLE history (
   updatedAt $textTypeNull
 )
 ''');
+    }
+
+    if (oldVersion < 4) {
+      await db.execute('CREATE INDEX idx_bookmarks_link ON bookmarks (link)');
     }
   }
 
