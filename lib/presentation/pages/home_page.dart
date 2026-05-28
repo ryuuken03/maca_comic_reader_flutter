@@ -4,6 +4,7 @@ import '../../data/models/comic_model.dart';
 import '../providers/home_provider.dart';
 import '../widgets/comic_card.dart';
 import '../widgets/show_all_button.dart';
+import '../widgets/shimmer.dart';
 import 'bookmark_page.dart';
 import 'history_page.dart';
 import 'package:go_router/go_router.dart';
@@ -96,7 +97,26 @@ class __HomeContentState extends State<_HomeContent> {
     );
   }
 
-  Widget _buildHorizontalList(List<ComicModel> comics) {
+  Widget _buildHorizontalList(List<ComicModel> comics, {bool isLoading = false}) {
+    if (isLoading) {
+      return SizedBox(
+        height: 250,
+        child: ListView.builder(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          itemCount: 5,
+          itemBuilder: (context, index) {
+            return const SizedBox(
+              width: 140,
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 4.0),
+                child: ComicCardSkeleton(),
+              ),
+            );
+          },
+        ),
+      );
+    }
     if (comics.isEmpty) {
       return const Padding(
         padding: EdgeInsets.all(16.0),
@@ -122,7 +142,24 @@ class __HomeContentState extends State<_HomeContent> {
     );
   }
 
-  Widget _buildGrid(List<ComicModel> comics) {
+  Widget _buildGrid(List<ComicModel> comics, {bool isLoading = false}) {
+    if (isLoading) {
+      return GridView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          childAspectRatio: 0.7,
+          crossAxisSpacing: 8,
+          mainAxisSpacing: 8,
+        ),
+        itemCount: 4,
+        itemBuilder: (context, index) {
+          return const ComicCardSkeleton();
+        },
+      );
+    }
     if (comics.isEmpty) {
       return const Padding(
         padding: EdgeInsets.all(16.0),
@@ -154,9 +191,7 @@ class __HomeContentState extends State<_HomeContent> {
       ),
       body: Consumer<HomeProvider>(
         builder: (context, provider, child) {
-          if (provider.isLoading && provider.homeComics.isEmpty && provider.popularComics.isEmpty) {
-            return const Center(child: CircularProgressIndicator());
-          }
+          final isLoading = provider.isLoading && provider.homeComics.isEmpty && provider.popularComics.isEmpty;
 
           return RefreshIndicator(
             onRefresh: () => provider.fetchHomeData(),
@@ -167,17 +202,17 @@ class __HomeContentState extends State<_HomeContent> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _buildSectionHeader(context, 'Komik Popular', preset: 'popular_all'),
-                  _buildHorizontalList(provider.popularComics),
+                  _buildHorizontalList(isLoading ? [] : provider.popularComics, isLoading: isLoading),
                   _buildShowAllButton(context, 'Komik Popular', preset: 'popular_all'),
 
                   const SizedBox(height: 16),
-                  _buildSectionHeader(context, 'Proyek', type: 'project',preset: 'rilisan_terbaru'),
-                  _buildHorizontalList(provider.projectComics),
-                  _buildShowAllButton(context, 'Proyek', type: 'project',preset: 'rilisan_terbaru'),
+                  _buildSectionHeader(context, 'Proyek', type: 'project', preset: 'rilisan_terbaru'),
+                  _buildHorizontalList(isLoading ? [] : provider.projectComics, isLoading: isLoading),
+                  _buildShowAllButton(context, 'Proyek', type: 'project', preset: 'rilisan_terbaru'),
 
                   const SizedBox(height: 16),
                   _buildSectionHeader(context, 'Komik Terbaru', preset: 'rilisan_terbaru'),
-                  _buildGrid(provider.homeComics),
+                  _buildGrid(isLoading ? [] : provider.homeComics, isLoading: isLoading),
                   _buildShowAllButton(context, 'Komik Terbaru', preset: 'rilisan_terbaru'),
                   const SizedBox(height: 16),
                 ],
