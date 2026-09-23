@@ -26,6 +26,33 @@ class ComicCard extends StatefulWidget {
 
 class _ComicCardState extends State<ComicCard> {
   int _retryKey = 0;
+  late String _formattedSubtitle;
+
+  static const _bottomGradient = LinearGradient(
+    begin: Alignment.bottomCenter,
+    end: Alignment.topCenter,
+    colors: [
+      Color(0xEB000000),
+      Color(0xB3000000),
+      Colors.transparent,
+    ],
+    stops: [0.0, 0.7, 1.0],
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    _formattedSubtitle = _formatChapter(widget.comic.latestChapter, widget.comic.updatedAt);
+  }
+
+  @override
+  void didUpdateWidget(ComicCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.comic.latestChapter != widget.comic.latestChapter ||
+        oldWidget.comic.updatedAt != widget.comic.updatedAt) {
+      _formattedSubtitle = _formatChapter(widget.comic.latestChapter, widget.comic.updatedAt);
+    }
+  }
 
   void _retry() {
     setState(() {
@@ -40,8 +67,8 @@ class _ComicCardState extends State<ComicCard> {
         context.push('/detail', extra: widget.comic.link);
       },
       child: Card(
-        clipBehavior: Clip.antiAlias,
-        elevation: 2,
+        clipBehavior: Clip.hardEdge,
+        elevation: 1,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         child: Stack(
           fit: StackFit.expand,
@@ -56,6 +83,9 @@ class _ComicCardState extends State<ComicCard> {
                 httpHeaders: widget.httpHeaders ?? AppConstants.imageHeaders,
                 memCacheWidth: 350,
                 maxWidthDiskCache: 600,
+                fadeInDuration: const Duration(milliseconds: 120),
+                fadeOutDuration: Duration.zero,
+                placeholder: (context, url) => const ColoredBox(color: Color(0xFF1E1E1E)),
                 fit: BoxFit.cover,
                 alignment: Alignment.topCenter,
                 errorWidget: (context, url, error) => widget.enableRetry
@@ -76,17 +106,8 @@ class _ComicCardState extends State<ComicCard> {
               right: 0,
               child: Container(
                 padding: const EdgeInsets.all(8.0),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.bottomCenter,
-                    end: Alignment.topCenter,
-                    colors: [
-                      Colors.black.withOpacity(0.92),
-                      Colors.black.withOpacity(0.70),
-                      Colors.transparent,
-                    ],
-                    stops: const [0.0, 0.7, 1.0],
-                  ),
+                decoration: const BoxDecoration(
+                  gradient: _bottomGradient,
                 ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -129,7 +150,7 @@ class _ComicCardState extends State<ComicCard> {
                     // Chapter & Updated Time
                     const SizedBox(height: 2),
                     Text(
-                      _formatChapter(widget.comic.latestChapter, widget.comic.updatedAt),
+                      _formattedSubtitle,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
@@ -195,19 +216,13 @@ class _ComicCardState extends State<ComicCard> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2.5),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.92),
+                      color: const Color(0xEBFFFFFF),
                       borderRadius: BorderRadius.circular(4),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.25),
-                          blurRadius: 3,
-                          offset: const Offset(0, 1),
-                        ),
-                      ],
                     ),
                     child: Image.asset(
                       'lib/assets/logo_voratoon_1.png',
                       height: 12,
+                      cacheHeight: 24,
                       fit: BoxFit.contain,
                     ),
                   ),

@@ -120,6 +120,39 @@ lib/
 
 ---
 
+## 📦 Panduan Build APK (Android)
+
+### 1. Build APK Debug
+Digunakan untuk pengujian cepat langsung di perangkat fisik tanpa konfigurasi signing key/keystore:
+```bash
+flutter build apk --debug
+```
+- **Lokasi Output:** `build/app/outputs/flutter-apk/app-debug.apk`
+
+### 2. Build APK Release
+Menghasilkan APK teroptimasi (kode di-compile ke machine code biner penuh, ukuran lebih kecil, dan performa maksimal):
+- **Universal APK:**
+  ```bash
+  flutter build apk --release
+  ```
+  **Lokasi Output:** `build/app/outputs/flutter-apk/app-release.apk`
+
+- **Split per ABI (Rekomendasi - Ukuran Jauh Lebih Ringan):**
+  Memisahkan APK berdasarkan arsitektur CPU target (misal: `arm64-v8a` untuk smartphone modern):
+  ```bash
+  flutter build apk --split-per-abi
+  ```
+  **Lokasi Output:** `build/app/outputs/flutter-apk/app-arm64-v8a-release.apk` (dan arsitektur lainnya).
+
+### 3. Instalasi APK ke Perangkat via ADB
+Setelah build selesai, APK dapat langsung dipasang ke perangkat yang terhubung:
+```bash
+adb install -r build/app/outputs/flutter-apk/app-debug.apk
+```
+*(Atau salin file APK langsung ke penyimpanan smartphone).*
+
+---
+
 ## 💡 Catatan & Panduan Pengujian
 
 - **Pengujian Otomatis**: Jalankan `flutter test` untuk mengeksekusi seluruh *unit test* dan *widget test* (Adaptive Grid, Koleksi & Filter, Detail Badges, Reader Ergonomics, Cache Manager, dan Scraper Service).

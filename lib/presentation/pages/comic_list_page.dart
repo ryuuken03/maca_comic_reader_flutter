@@ -26,12 +26,13 @@ class ComicListPage extends StatefulWidget {
 class _ComicListPageState extends State<ComicListPage> {
   final ScrollController _scrollController = ScrollController();
   final TextEditingController _searchController = TextEditingController();
+  final ValueNotifier<bool> _showBackToTopNotifier = ValueNotifier<bool>(false);
   
   String _searchQuery = '';
   List<String> _selectedGenreIds = [];
   int _currentPage = 1;
-  bool _showBackToTop = false;
   bool _isInitialLoading = true;
+  bool _isFetchingMore = false;
 
   @override
   void initState() {
@@ -90,27 +91,33 @@ class _ComicListPageState extends State<ComicListPage> {
 
   Future<void> _fetchMoreData() async {
     final provider = context.read<HomeProvider>();
-    if (provider.isLoading || !provider.hasNextPage) return;
+    if (_isFetchingMore || provider.isLoading || !provider.hasNextPage) return;
 
+    _isFetchingMore = true;
     _currentPage++;
     final take = getAdaptiveGridTake(context);
     final effectivePreset = _searchQuery.isNotEmpty ? null : widget.preset;
-    provider.fetchDiscover(
-      searchQuery: _searchQuery,
-      genres: _selectedGenreIds,
-      page: _currentPage,
-      preset: effectivePreset,
-      type: widget.type,
-      take: take,
-    );
+    try {
+      await provider.fetchDiscover(
+        searchQuery: _searchQuery,
+        genres: _selectedGenreIds,
+        page: _currentPage,
+        preset: effectivePreset,
+        type: widget.type,
+        take: take,
+      );
+    } finally {
+      if (mounted) {
+        _isFetchingMore = false;
+      }
+    }
   }
 
   void _onScroll() {
-    // Check for "Back to Top" button
-    if (_scrollController.offset > 600) {
-      if (!_showBackToTop) setState(() => _showBackToTop = true);
-    } else {
-      if (_showBackToTop) setState(() => _showBackToTop = false);
+    // Check for "Back to Top" button without rebuilding whole page
+    final shouldShow = _scrollController.offset > 600;
+    if (_showBackToTopNotifier.value != shouldShow) {
+      _showBackToTopNotifier.value = shouldShow;
     }
 
     // Check for load more
@@ -123,6 +130,7 @@ class _ComicListPageState extends State<ComicListPage> {
   void dispose() {
     _scrollController.dispose();
     _searchController.dispose();
+    _showBackToTopNotifier.dispose();
     super.dispose();
   }
 
@@ -222,57 +230,74 @@ class _ComicListPageState extends State<ComicListPage> {
               );
             }
 
-            return Column(
-              children: [
-                Expanded(
-                  child: GridView.builder(
-                    controller: _scrollController,
-                    padding: const EdgeInsets.all(16),
+            return CustomScrollView(
+              controller: _scrollController,
+              physics: const AlwaysScrollableScrollPhysics(),
+              cacheExtent: 500,
+              slivers: [
+                SliverPadding(
+                  padding: const EdgeInsets.all(16),
+                  sliver: SliverGrid(
                     gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
                       maxCrossAxisExtent: 180,
                       childAspectRatio: 0.68,
                       crossAxisSpacing: 8,
                       mainAxisSpacing: 8,
                     ),
-                    itemCount: provider.discoverComics.length,
-                    itemBuilder: (context, index) {
-                      return ComicCard(comic: provider.discoverComics[index]);
-                    },
+                    delegate: SliverChildBuilderDelegate(
+                      (context, index) {
+                        final comic = provider.discoverComics[index];
+                        return ComicCard(
+                          key: ValueKey('discover_${comic.link}'),
+                          comic: comic,
+                        );
+                      },
+                      childCount: provider.discoverComics.length,
+                      addAutomaticKeepAlives: false,
+                      addRepaintBoundaries: true,
+                    ),
                   ),
                 ),
                 if (provider.isLoading)
-                  const Padding(
-                    padding: EdgeInsets.all(8.0),
-                    child: Center(child: CircularProgressIndicator()),
+                  const SliverToBoxAdapter(
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(vertical: 16.0),
+                      child: Center(child: CircularProgressIndicator()),
+                    ),
                   ),
               ],
             );
           },
         ),
       ),
-      floatingActionButton: AnimatedSlide(
-        offset: _showBackToTop ? Offset.zero : const Offset(0, 1.5),
-        duration: const Duration(milliseconds: 250),
-        curve: Curves.easeOutCubic,
-        child: AnimatedOpacity(
-          opacity: _showBackToTop ? 1.0 : 0.0,
-          duration: const Duration(milliseconds: 200),
-          child: FloatingActionButton(
-            mini: true,
-            backgroundColor: Theme.of(context).primaryColor,
-            foregroundColor: Colors.white,
-            onPressed: _showBackToTop
-                ? () {
-                    _scrollController.animateTo(
-                      0,
-                      duration: const Duration(milliseconds: 500),
-                      curve: Curves.easeInOut,
-                    );
-                  }
-                : null,
-            child: const Icon(Icons.keyboard_arrow_up),
-          ),
-        ),
+      floatingActionButton: ValueListenableBuilder<bool>(
+        valueListenable: _showBackToTopNotifier,
+        builder: (context, showBackToTop, child) {
+          return AnimatedSlide(
+            offset: showBackToTop ? Offset.zero : const Offset(0, 1.5),
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeOutCubic,
+            child: AnimatedOpacity(
+              opacity: showBackToTop ? 1.0 : 0.0,
+              duration: const Duration(milliseconds: 200),
+              child: FloatingActionButton(
+                mini: true,
+                backgroundColor: Theme.of(context).primaryColor,
+                foregroundColor: Colors.white,
+                onPressed: showBackToTop
+                    ? () {
+                        _scrollController.animateTo(
+                          0,
+                          duration: const Duration(milliseconds: 500),
+                          curve: Curves.easeInOut,
+                        );
+                      }
+                    : null,
+                child: const Icon(Icons.keyboard_arrow_up),
+              ),
+            ),
+          );
+        },
       ),
     );
   }

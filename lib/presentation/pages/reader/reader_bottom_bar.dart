@@ -269,7 +269,9 @@ class ReaderAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
+    final canPop = ModalRoute.of(context)?.canPop ?? false;
     return AppBar(
+      titleSpacing: canPop ? 0 : null,
       title: Consumer<ReaderProvider>(
         builder: (context, provider, _) {
           return Column(
@@ -291,18 +293,21 @@ class ReaderAppBar extends StatelessWidget implements PreferredSizeWidget {
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(
-                    chapterLabelBuilder(provider),
-                    style: TextStyle(
-                      fontSize: isTablet ? 12 : 11,
-                      color: Colors.white70,
+                  Flexible(
+                    child: Text(
+                      chapterLabelBuilder(provider),
+                      style: TextStyle(
+                        fontSize: isTablet ? 12 : 11,
+                        color: Colors.white70,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(width: 6),
-                  if (provider.isOffline)
+                  if (provider.isOffline) ...[
+                    const SizedBox(width: 4),
                     _buildBadge(AppStrings.offlineMode, _kAccent),
+                  ],
                   const SizedBox(width: 4),
                   _buildBadge(
                     isWebtoonMode

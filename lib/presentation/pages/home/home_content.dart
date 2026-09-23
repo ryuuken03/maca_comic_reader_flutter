@@ -93,12 +93,17 @@ class _HomeContentState extends State<HomeContent> {
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 12),
         itemCount: comics.length,
+        cacheExtent: 300,
         itemBuilder: (context, index) {
+          final comic = comics[index];
           return SizedBox(
             width: 140,
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 4.0),
-              child: ComicCard(comic: comics[index]),
+              child: ComicCard(
+                key: ValueKey('h_${comic.link}'),
+                comic: comic,
+              ),
             ),
           );
         },
@@ -107,52 +112,53 @@ class _HomeContentState extends State<HomeContent> {
   }
 
   Widget _buildGridSliver(List<ComicModel> comics, {bool isLoading = false}) {
-    return SliverLayoutBuilder(
-      builder: (context, constraints) {
-        if (constraints.crossAxisExtent <= 0) {
-          return const SliverToBoxAdapter(child: SizedBox.shrink());
-        }
-        if (isLoading) {
-          return SliverPadding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            sliver: SliverGrid(
-              gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                maxCrossAxisExtent: 180,
-                childAspectRatio: 0.68,
-                crossAxisSpacing: 8,
-                mainAxisSpacing: 8,
-              ),
-              delegate: SliverChildBuilderDelegate(
-                (context, index) => const ComicCardSkeleton(),
-                childCount: 4,
-              ),
-            ),
-          );
-        }
-        if (comics.isEmpty) {
-          return const SliverToBoxAdapter(
-            child: Padding(
-              padding: EdgeInsets.all(16.0),
-              child: Center(child: Text(AppStrings.noComicsFound)),
-            ),
-          );
-        }
-        return SliverPadding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          sliver: SliverGrid(
-            gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-              maxCrossAxisExtent: 180,
-              childAspectRatio: 0.68,
-              crossAxisSpacing: 8,
-              mainAxisSpacing: 8,
-            ),
-            delegate: SliverChildBuilderDelegate(
-              (context, index) => ComicCard(comic: comics[index]),
-              childCount: comics.length,
-            ),
+    if (isLoading) {
+      return SliverPadding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        sliver: SliverGrid(
+          gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+            maxCrossAxisExtent: 180,
+            childAspectRatio: 0.68,
+            crossAxisSpacing: 8,
+            mainAxisSpacing: 8,
           ),
-        );
-      },
+          delegate: SliverChildBuilderDelegate(
+            (context, index) => const ComicCardSkeleton(),
+            childCount: 4,
+          ),
+        ),
+      );
+    }
+    if (comics.isEmpty) {
+      return const SliverToBoxAdapter(
+        child: Padding(
+          padding: EdgeInsets.all(16.0),
+          child: Center(child: Text(AppStrings.noComicsFound)),
+        ),
+      );
+    }
+    return SliverPadding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      sliver: SliverGrid(
+        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+          maxCrossAxisExtent: 180,
+          childAspectRatio: 0.68,
+          crossAxisSpacing: 8,
+          mainAxisSpacing: 8,
+        ),
+        delegate: SliverChildBuilderDelegate(
+          (context, index) {
+            final comic = comics[index];
+            return ComicCard(
+              key: ValueKey('grid_${comic.link}'),
+              comic: comic,
+            );
+          },
+          childCount: comics.length,
+          addAutomaticKeepAlives: false,
+          addRepaintBoundaries: true,
+        ),
+      ),
     );
   }
 
@@ -186,6 +192,7 @@ class _HomeContentState extends State<HomeContent> {
             },
             child: CustomScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
+              cacheExtent: 500,
               slivers: [
                 SliverToBoxAdapter(
                   child: Column(
