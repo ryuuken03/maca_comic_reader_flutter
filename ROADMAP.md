@@ -4,7 +4,7 @@ Dokumen ini berisi rencana pengembangan dan panduan teknis untuk fase-fase berik
 
 ---
 
-## 📌 Status Fase Saat Ini (Completed)
+## 📌 Status Fase Saat Ini
 
 | Fase | Deskripsi | Status |
 |---|---|---|
@@ -14,13 +14,12 @@ Dokumen ini berisi rencana pengembangan dan panduan teknis untuk fase-fase berik
 | **Fase 4** | Kuota Grid Adaptif (Ganjil 21 / Genap 20), Search Debounce (500ms), `CustomScrollView` + `SliverGrid` recycling, Persistensi Mode Baca (Webtoon/Manga) | ✅ Selesai |
 | **Fase 5** | Kenyamanan Membaca: Toggle RTL/LTR Manga, Overlay Jam & Baterai Terisolasi, Brightness Tint Slider (Non-BackdropFilter) | ✅ Selesai |
 | **Fase 6** | Dashboard Pengaturan & Manajemen Penyimpanan: SegmentedButton, Selective Eviction, Disk Cache Calculator | ✅ Selesai |
-| **Fase 7** | Mode Offline & Download Chapter: DownloadService, Streamed I/O, Concurrency Pool, SQLite v8, DownloadsPage | ✅ Selesai |
+| **Fase 7** | Mode Offline & Download Chapter: DownloadService, Streamed I/O, Concurrency Pool, SQLite v8, DownloadsPage & Tab Terpadu CollectionPage | ✅ Selesai |
+| **Fase 8** | Pencadangan & Pemulihan (Backup & Restore Data) | ⏳ Belum Diimplementasi |
 
 ---
 
-## 🚀 Rencana Fase Lanjutan (Future Phases)
-
----
+## 📖 Ringkasan Fase yang Sudah Selesai (Fase 1 – Fase 7)
 
 ### 📖 Fase 5: Kenyamanan Membaca Lanjutan (Advanced Reader Ergonomics) ✅
 *Tujuan: Meningkatkan kenyamanan visual dan kontrol saat membaca chapter komik.*
@@ -118,7 +117,9 @@ Dokumen ini berisi rencana pengembangan dan panduan teknis untuk fase-fase berik
 
 ---
 
-### 🔄 Fase 8: Pencadangan & Pemulihan (Backup & Restore Data)
+## 🚀 Rencana Fase Selanjutnya (Upcoming Phase)
+
+### 🔄 Fase 8: Pencadangan & Pemulihan (Backup & Restore Data) ⏳ (Belum Diimplementasi)
 *Tujuan: Melindungi riwayat membaca dan koleksi komik pengguna saat berganti smartphone.*
 
 #### 1. Format Skema Ekspor JSON
@@ -145,27 +146,10 @@ Dokumen ini berisi rencana pengembangan dan panduan teknis untuk fase-fase berik
 
 ---
 
-### 🌐 Fase 9: Multi-Source & Domain Mirror Failover
-*Tujuan: Memastikan aplikasi tetap berfungsi jika domain sumber komik terkena blokir internet positif.*
-
-#### 1. Pengalih Domain Dinamis (Domain Mirror Switcher)
-- Sediakan daftar mirror domain pada `AppConstants`:
-  ```dart
-  static const List<String> mirrorUrls = [
-    'https://komikcast.bz',
-    'https://komikcast.cz',
-    'https://komikcast.cx',
-  ];
-  ```
-- Deteksi kegagalan koneksi (HTTP 403, 502, connection refused).
-- Opsi pemilihan sumber/mirror manual di `SettingsPage`.
-
----
-
 ## 🛠️ Panduan Memulai Fase Baru bagi AI / Developer
 
-Saat diminta mengeksekusi salah satu fase di atas:
+Saat diminta mengeksekusi Fase 8:
 1. Baca kembali aturan wajib di [AGENTS.md](file:///c:/Project/Antigravity/maca/AGENTS.md).
 2. Buat `implementation_plan.md` yang spesifik untuk fase tersebut dan mintakan persetujuan pengguna.
 3. Jalankan pengujian otomatis (`flutter analyze` dan `flutter test`) sebelum dan sesudah perubahan.
-4. Perbarui status checklist di dokumen ini dan [walkthrough.md](file:///c:/Users/Ryuu/.gemini/antigravity-ide/brain/5c650a19-9f8f-4a55-8326-dbb30fb3a5b4/walkthrough.md).
+4. Perbarui status checklist di dokumen ini.

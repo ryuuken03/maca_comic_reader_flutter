@@ -97,7 +97,6 @@ class ChapterTile extends StatelessWidget {
 
     return ListTile(
       title: Text(chapter.title),
-      subtitle: chapter.releaseDate != null ? Text(chapter.releaseDate!) : null,
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -118,7 +117,6 @@ class ChapterTile extends StatelessWidget {
               );
             },
           ),
-          const Icon(Icons.chevron_right, size: 20, color: Colors.white54),
         ],
       ),
       onTap: () {

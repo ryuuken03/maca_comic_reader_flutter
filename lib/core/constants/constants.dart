@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 
 class AppConstants {
-  // static const String baseUrl = 'https://v1.komikcast.fit';
-  // static const String apiBaseUrl = 'https://be.komikcast.cc';
   static const String baseUrl = 'https://v2.voratoon.com';
   static const String apiBaseUrl = 'https://api.voratoon.com';
 
@@ -23,7 +21,7 @@ class AppConstants {
     'Accept-Language': 'en-US,en;q=0.9',
   };
 
-  // Selectors with fallbacks for MangaStream / Komikcast changes
+  // Selectors with fallbacks for MangaStream / Voratoon changes
   static const String homeListSelector = '.list-update .utao, .listupd .bs, .listo .bsx, .bigor';
   static const String homeImageSelector = '.imgu img, .limit img, img';
   static const String homeTitleSelector = '.luf h3, .luf h4, .bigor h3, .tt, h3, h4';

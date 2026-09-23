@@ -118,32 +118,14 @@ class _CollectionPageState extends State<CollectionPage>
                   fontWeight: FontWeight.bold, fontSize: 13),
               tabs: [
                 Tab(
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.bookmark_outline, size: 18),
-                      const SizedBox(width: 8),
-                      Text(
-                        hasBookmarks
-                            ? '${AppStrings.navBookmark} (${libraryProvider.bookmarks.length})'
-                            : AppStrings.navBookmark,
-                      ),
-                    ],
-                  ),
+                  text: hasBookmarks
+                      ? '${AppStrings.navBookmark} (${libraryProvider.bookmarks.length})'
+                      : AppStrings.navBookmark,
                 ),
                 Tab(
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.download_done_rounded, size: 18),
-                      const SizedBox(width: 8),
-                      Text(
-                        hasDownloads
-                            ? '${AppStrings.navDownloads} (${downloadProvider.downloadedChapters.length})'
-                            : AppStrings.navDownloads,
-                      ),
-                    ],
-                  ),
+                  text: hasDownloads
+                      ? '${AppStrings.navDownloads} (${downloadProvider.downloadedChapters.length})'
+                      : AppStrings.navDownloads,
                 ),
               ],
             ),

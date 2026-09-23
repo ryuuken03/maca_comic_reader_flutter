@@ -1,38 +1,74 @@
-# Maca Komik (KomikCast API Client) 📖⚡
+# Maca Komik (Voratoon API Client) 📖⚡
 
-Maca Komik adalah aplikasi pembaca komik lintas-platform berperforma tinggi yang dibangun menggunakan **Flutter**. Aplikasi ini murni memakan jalur REST API JSON (Tanpa Scraping HTML kuno), dilengkapi sistem pencegahan blokir *Cloudflare*, dan fitur koleksi/pengingat (*Bookmark & History*) otomatis yang tertanam di SQLite lokal (Offline).
+Maca Komik adalah aplikasi pembaca komik lintas-platform berperforma tinggi yang dibangun menggunakan **Flutter**. Aplikasi ini memanfaatkan jalur REST API JSON murni dari Voratoon (`https://api.voratoon.com`) tanpa scraping HTML lambat, dilengkapi sistem mitigasi proteksi *Cloudflare*, optimasi memori anti-OOM (*Out of Memory*), layout adaptif (Smartphone & Tablet), dan penyimpanan lokal SQLite v8 yang andal (Offline).
+
+---
 
 ## 🌟 Fitur Utama
-- **Arsitektur Bersih (Clean Architecture)**: Dipisahkan menjadi lapisan Data (Repository/Model/Service) dan Presentasi (Specialized Providers) untuk skalabilitas tinggi.
-- **Efisien State Management**: Menggunakan Provider terspesialisasi (`Home`, `Detail`, `Reader`, `Library`, `Settings`, `Download`) guna performa render yang ringan dan modular.
-- **Mode Offline & Download Manager**: Pengguna dapat mengunduh chapter komik untuk dibaca tanpa kuota. Menggunakan *zero-buffer streaming I/O* langsung ke disk (RAM < 10 MB) dan *concurrency pool* (2–3 gambar paralel + jitter anti-bot).
-- **Mode Baca Optimal & Adaptif**: Penampil gambar memanjang (*Webtoon*) dan per halaman (*Manga PageView* RTL/LTR) dengan pembatasan bitmap `cacheWidth`/`memCacheWidth` demi mencegah crash OOM.
-- **Riwayat, Koleksi & Unduhan Cerdas (SQLite v8)**: Sinkronisasi otomatis progres baca (*History*), daftar favorit (*Bookmark*), pengaturan preferensi (*app_settings*), dan katalog offline (*downloaded_chapters*).
-- **Dashboard Penyimpanan & Granular Cache Eviction**: Manajemen mandiri cache thumbnail, cache reader, dan file unduhan chapter komik langsung dari menu Pengaturan.
 
-## 🏗️ Desain Arsitektur
-Proyek ini mengikuti pola **Clean Architecture**:
-- **Data Layer**: 
-  - `ScraperService`: Penanggung jawab pengambilan data API REST.
-  - `DownloadService`: Penanggung jawab antrean download chapter, streaming I/O, dan concurrency pool.
-  - `DatabaseHelper`: Penanggung jawab persistensi lokal SQLite (Bookmarks, History, Settings, Downloaded Chapters).
-  - `ComicRepository`: *Single Source of Truth* yang mengoordinasikan sumber data untuk UI.
-- **Presentation Layer (Providers & Pages)**:
-  - `HomeProvider` & `HomePage`: Mengelola feed beranda, pencarian, dan grid adaptif komik.
-  - `DetailProvider` & `DetailPage`: Mengelola detail komik, list chapter, dan trigger download chapter.
-  - `ReaderProvider` & `ReaderPage`: Mengelola penampil gambar chapter (online via `CachedNetworkImage` dan offline via `Image.file`).
-  - `LibraryProvider` & `BookmarkPage` / `HistoryPage`: Mengelola sinkronisasi Bookmark dan Riwayat Baca.
-  - `SettingsProvider` & `SettingsPage`: Mengelola preferensi baca global dan kalkulator disk cache.
-  - `DownloadProvider` & `DownloadsPage`: Mengelola status unduhan aktif, tracking progres, dan penghapusan chapter lokal.
+- **Arsitektur Bersih & Modular (Clean Architecture)**: Pemisahan tegas antara Data Layer (Repository, Service, Model) dan Presentation Layer dengan struktur komponen terorganisasi per fitur (`home/`, `detail/`, `reader/`, `collection/`).
+- **Efisien State Management**: Menggunakan Provider terspesialisasi (`HomeProvider`, `DetailProvider`, `ReaderProvider`, `LibraryProvider`, `SettingsProvider`, `DownloadProvider`) untuk kinerja render yang modular dan ringan.
+- **Mode Offline & Download Manager Berperforma Tinggi**:
+  - Mengunduh chapter komik untuk dibaca kapan saja tanpa kuota internet.
+  - Menggunakan *zero-buffer streaming I/O* langsung ke flash storage (`Stream.pipe(File.openWrite())`) menjaga penggunaan RAM unduhan tetap di bawah 10 MB.
+  - Dilengkapi *concurrency pool* (2–3 gambar paralel) dan jeda manusiawi (*jitter delay* 150ms–350ms) guna memitigasi limitasi anti-bot/WAF.
+- **Pengalaman Membaca Ergonomis (Advanced Reader Ergonomics)**:
+  - **Mode Webtoon**: Scroll vertikal kontinyu dengan pembatas lebar (`maxWidth: 720`) di layar tablet/desktop.
+  - **Mode Manga**: Paging horizontal per halaman (`PageView`) dengan dukungan arah baca Kanan-ke-Kiri (RTL) dan Kiri-ke-Kanan (LTR).
+  - **Persistensi Preferensi**: Seluruh preferensi baca tersimpan otomatis di database lokal.
+  - **Layar Imersif Penuh**: Sembunyikan bilah kontrol dengan sekali ketuk (`SystemUiMode.immersiveSticky`).
+  - **Overlay Jam & Baterai Terisolasi**: Memantau waktu dan daya baterai tanpa memicu render ulang gambar chapter.
+  - **Tint Kecerahan**: Pengatur tingkat kegelapan/kecerahan layar berbasis slider tanpa *BackdropFilter* (bebas beban offscreen GPU).
+  - **Retryable Image Reload**: Tombol coba ulang mandiri per panel jika terjadi kegagalan jaringan pada gambar tertentu.
+- **Tata Letak Responsif & Adaptif (Adaptive Layout)**:
+  - **Grid Cerdas (Ganjil 21 / Genap 20)**: Menyesuaikan jumlah kartu komik agar baris grid selalu terisi penuh rata di semua resolusi layar (`SliverGridDelegateWithMaxCrossAxisExtent`).
+  - **Adaptive Navigation**: Menggunakan `BottomNavigationBar` pada smartphone dan beralih otomatis ke `NavigationRail` vertikal di sisi kiri pada layar lebar (`width >= 640dp`).
+  - **Master-Detail Split View**: Pada halaman detail di layar tablet/desktop (`width >= 720dp`), tampilan terbagi menjadi kolom metadata di kiri dan daftar chapter interaktif di kanan.
+- **Koleksi Terpadu & Riwayat Otomatis (SQLite v8)**:
+  - Halaman `CollectionPage` menggabungkan komik **Tersimpan (Bookmark)** dan **Unduhan (Downloads)** dalam satu tampilan `TabBar` yang rapi.
+  - Riwayat baca (*History*) mencatat posisi chapter terakhir secara otomatis.
+- **Dashboard Penyimpanan & Granular Cache Eviction**:
+  - Menampilkan ukuran cache aktual secara real-time.
+  - Hapus mandiri cache sampul (*cover cache*), cache reader, atau unduhan komik per chapter/seluruh komik langsung dari menu Pengaturan.
+- **UI Bersih & Sentralisasi Teks**:
+  - Seluruh teks antarmuka tersentralisasi di `lib/core/constants/app_strings.dart`.
+  - Desain minimalis tanpa subtitle bertele-tele dan bebas dari ikon dekoratif non-substansi.
+
+---
+
+## 🏗️ Desain Arsitektur & Struktur Folder
+
+```
+lib/
+├── core/
+│   ├── constants/       # AppConstants & AppStrings (Sentralisasi Teks)
+│   ├── database/        # DatabaseHelper (SQLite v8 migration)
+│   └── utils/           # AdaptiveUtils, CacheManager, StorageHelper
+├── data/
+│   ├── models/          # ComicModel, DetailComicModel, ChapterModel, DownloadedChapterModel
+│   ├── repositories/    # ComicRepository (Single Source of Truth)
+│   └── services/        # ScraperService (REST API) & DownloadService (Streaming I/O)
+└── presentation/
+    ├── navigation/      # Navigasi & Routing GoRouter
+    ├── pages/
+    │   ├── home/        # HomePage & HomeContent
+    │   ├── detail/      # DetailPage & komponen spesifik (Header, Filter, Poster, CTA, Skeleton)
+    │   ├── reader/      # ReaderPage & komponen (Manga, RetryableImage, BottomBar, Overlay)
+    │   ├── collection/  # CollectionPage, CollectionBookmarkTab, CollectionDownloadsTab
+    │   ├── comic_list_page.dart  # Halaman penjelajah katalog komik & filter genre
+    │   └── settings_page.dart    # Halaman pengaturan preferensi baca & cache storage
+    ├── providers/       # Specialized Providers (Home, Detail, Reader, Library, Settings, Download)
+    └── widgets/         # Komponen global (ComicCard, ChapterTile, SearchInput, Shimmer, Dialogs)
+```
 
 ---
 
 ## 🛠️ Persyaratan Pra-Instalasi (System Requirements)
-Pastikan Anda sudah menginstal sistem inti berikut di komputer/laptop:
-- **Flutter SDK** (Versi 3.0.0 ke atas sangat disarankan) - [Cara Instal Flutter](https://docs.flutter.dev/get-started/install)
-- **Dart SDK** (Biasanya otomatis menempel satu paket dengan Flutter)
+
+- **Flutter SDK** (Versi 3.0.0 ke atas sangat disarankan) - [Panduan Instalasi Flutter](https://docs.flutter.dev/get-started/install)
+- **Dart SDK** (Otomatis terpasang bersama Flutter SDK)
 - **Visual Studio Code** ATAU **Android Studio**
-- Tersedia **Emulator Android/iOS** atau Perangkat HP sungguhan (via Kabel Data / WiFi Debugging).
+- **Perangkat Target**: Emulator Android/iOS atau HP fisik (via Kabel Data USB Debugging / Wi-Fi Debugging).
 
 ---
 
@@ -40,80 +76,55 @@ Pastikan Anda sudah menginstal sistem inti berikut di komputer/laptop:
 
 ### A. Menggunakan Visual Studio Code (Rekomendasi Utama)
 
-1. **Clone Repositori Ini:**
-   Buka *Command Prompt/Terminal/Git Bash* di folder tempat Anda ingin menaruh proyek ini, dan ketikkan:
+1. **Clone Repositori:**
    ```bash
    git clone https://github.com/ryuuken03/maca_comic_reader_flutter.git
    cd maca
    ```
 2. **Pasang Dependensi (*Packages*):**
-   Buka folder proyek ini ke dalam **Visual Studio Code**, kemudian tekan **Ctrl + `** untuk membuka Terminal internal VS Code. Ketikkan:
+   Buka terminal di VS Code (**Ctrl + `**) dan jalankan:
    ```bash
    flutter pub get
    ```
-
-3. **Menjalankan di Emulator:**
-   - Lihat area bilah bawah (*Status Bar*) VS Code Anda bagian kanan bawah.
-   - Klik area nama perangkat (misal `No Device` atau `Chrome`) lalu pilih nama Emulator yang ingin dijalankan (Android Emulator / iOS Simulator).
-   - Buka file `lib/main.dart` dan tekan tombol **F5** pada Keyboard untuk menjalankan aplikasi (atau klik menu *Run* -> *Start Debugging*).
-
-4. **Menjalankan di HP Fisik (Android / iOS):**
-   - **Persiapan HP Android**:
-     1. Aktifkan **Developer Options**: Masuk ke menu *Settings* -> *About Phone* -> Ketuk *Build Number* sebanyak 7 kali hingga muncul pesan bahwa developer mode aktif.
-     2. Aktifkan **USB Debugging**: Masuk ke menu *Settings* -> *Developer Options* -> Nyalakan tombol *USB Debugging*.
-   - **Persiapan HP iOS (Harus menggunakan MacOS & Xcode)**:
-     1. Hubungkan HP iOS ke komputer Mac menggunakan kabel data.
-     2. Di HP iOS, aktifkan **Developer Mode** melalui *Settings* -> *Privacy & Security* -> Nyalakan *Developer Mode* (ikuti instruksi restart perangkat).
-     3. Buka folder `ios` menggunakan Xcode untuk menyetel *Signing & Capabilities* (Team dan Bundle Identifier) agar bisa di-deploy ke HP Anda.
-   - **Koneksi & Eksekusi di VS Code**:
-     1. Hubungkan HP menggunakan kabel data (pastikan mode USB di HP diset ke *File Transfer*).
-     2. Setujui dialog otorisasi *USB Debugging* yang muncul di layar HP Anda (*"Allow USB debugging?"*).
-     3. Pada status bar kanan bawah VS Code, pastikan nama HP fisik Anda sudah terpilih (misal: *Samsung SM-G998B* atau *iPhone*).
-     4. Tekan **F5** untuk memulai proses compile dan instalasi langsung ke HP Anda.
+3. **Menjalankan di Emulator atau HP Fisik:**
+   - Pilih target perangkat di bilah status kanan bawah VS Code (Android Emulator, iOS Simulator, atau nama HP fisik Anda).
+   - Pastikan **USB Debugging** telah diaktifkan jika menggunakan HP fisik Android.
+   - Buka file `lib/main.dart` dan tekan **F5** (atau klik menu *Run* -> *Start Debugging*).
 
 ---
 
-### B. Menggunakan Editor Lain & Terminal CLI (Sublime Text, Vim, Cursor, Notepad++, dll.)
+### B. Menggunakan Terminal / Command Prompt CLI
 
-Jika Anda menggunakan editor teks ringan lainnya, Anda dapat mengontrol kompilasi dan instalasi sepenuhnya melalui baris perintah (*command line*):
-
-1. **Pasang Dependensi**:
+1. **Pasang Dependensi:**
    ```bash
    flutter pub get
    ```
-2. **Cek Koneksi Perangkat**:
-   Hubungkan HP fisik Anda (dengan USB Debugging menyala) atau nyalakan emulator, lalu jalankan perintah:
+2. **Cek Koneksi Perangkat:**
    ```bash
    flutter devices
    ```
-   Pastikan nama perangkat HP atau emulator Anda terdaftar di output tersebut dengan status *online*.
-3. **Jalankan Aplikasi**:
-   - Jika hanya ada **satu perangkat** aktif, jalankan perintah berikut di terminal root proyek:
-     ```bash
-     flutter run
-     ```
-   - Jika ada **beberapa perangkat** aktif, jalankan menggunakan ID perangkat target:
-     ```bash
-     flutter run -d <DEVICE_ID>
-     ```
-   - *Tips interaktif*: Ketik `r` di terminal untuk *Hot Reload* cepat, `R` untuk *Hot Restart*, atau `q` untuk keluar dan menutup aplikasi.
+3. **Jalankan Aplikasi:**
+   ```bash
+   flutter run
+   ```
+   *(Gunakan `flutter run -d <DEVICE_ID>` jika terhubung ke lebih dari satu perangkat).*
 
 ---
 
 ### C. Menggunakan Android Studio
-1. **Clone Proyek:** 
-   Buka Android Studio, pilih menu **"Get from VCS"** (Paling awal di layar sambutan).
-2. **Tempel URL:** 
-   Masukkan link git proyek ini dan tentukan lokasi foldernya. Klik **Clone**.
-3. **Tarik Dependensi:** 
-   Buka file `pubspec.yaml`, dan akan muncul garis batas / pita khusus di atas layar bertuliskan **"Pub get"**. Klik tombol tersebut untuk menyedot semua modul secara instan.
-4. **Jalankan Aplikasi:**
-   Nyalakan AVD (*Android Virtual Device*) Anda dari menu navigasi Manajer Perangkat Atas. Setelah nyala, klik panah hijau besar (**▶ Run**) atau tekan `Shift + F10`.
+
+1. Buka Android Studio, pilih menu **"Get from VCS"**.
+2. Tempel URL repositori Git dan klik **Clone**.
+3. Buka file `pubspec.yaml`, lalu klik tombol **"Pub get"** di bagian atas editor.
+4. Pilih perangkat dari Device Manager, lalu klik tombol **▶ Run** (atau tekan `Shift + F10`).
 
 ---
 
-## 💡 Troubleshooting & Bantuan
-* **Masalah `Method or Getter Not Defined`?** Pastikan Anda melakukan `flutter clean` lalu `flutter pub get` ulang untuk membersihkan tumpukan _cache_ yang rusak di komputer Anda.
-* **Gambar Gagal Termuat / Cloudflare 403?** Header rahasia emulator untuk *Bypass* Cloudflare disetel secara permanen di class *Reader Page*. Aplikasi ini akan paling aman dites di emulator/Android asli (Bukan di *Local Web/Chrome*, karena Web menderita batasan CORS yang ketat).
+## 💡 Catatan & Panduan Pengujian
 
-*Proyek ini dirancang menggunakan arsitektur bersih dan struktur yang terus relevan! Selamat berkreasi dan mencoba.*
+- **Pengujian Otomatis**: Jalankan `flutter test` untuk mengeksekusi seluruh *unit test* dan *widget test* (Adaptive Grid, Koleksi & Filter, Detail Badges, Reader Ergonomics, Cache Manager, dan Scraper Service).
+- **Penanganan Gambar & Cloudflare**: Header penyamaran browser disetel pada `AppConstants.imageHeaders` untuk memastikan kelancaran pemuatan thumbnail dan halaman komik. Disarankan melakukan pengujian pada emulator/perangkat fisik Android/iOS asli.
+
+---
+
+*Proyek ini dikembangkan dengan arsitektur bersih, performa tinggi, dan standar kode yang terjaga rapi.*

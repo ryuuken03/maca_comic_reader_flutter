@@ -122,5 +122,5 @@ Backend komik (seperti Voratoon / Komikcast / Cloudflare) memiliki sistem protek
 
 ## 6. Roadmap & Fase Pengembangan Lanjutan
 
-Rincian fase pengembangan selanjutnya (Fase 5 sampai Fase 9), termasuk arsitektur teknis dan panduan fitur, didokumentasikan di [ROADMAP.md](file:///c:/Project/Antigravity/maca/ROADMAP.md). AI agent wajib merujuk ke dokumen tersebut saat pengguna meminta kelanjutan pengembangan fitur.
+Rincian fase pengembangan selanjutnya (Fase 8), termasuk arsitektur teknis dan panduan fitur, didokumentasikan di [ROADMAP.md](file:///c:/Project/Antigravity/maca/ROADMAP.md). AI agent wajib merujuk ke dokumen tersebut saat pengguna meminta kelanjutan pengembangan fitur.
 

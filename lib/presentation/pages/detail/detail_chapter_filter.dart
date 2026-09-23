@@ -34,7 +34,6 @@ class DetailChapterFilter extends StatelessWidget {
             const SizedBox(width: 8),
             _FilterPill(
               label: '${AppStrings.filterDownloaded} ($downloadedCount)',
-              icon: Icons.download_done_rounded,
               isSelected: onlyDownloaded,
               onTap: onSelectDownloaded,
             ),
@@ -49,13 +48,11 @@ class _FilterPill extends StatelessWidget {
   final String label;
   final bool isSelected;
   final VoidCallback onTap;
-  final IconData? icon;
 
   const _FilterPill({
     required this.label,
     required this.isSelected,
     required this.onTap,
-    this.icon,
   });
 
   @override
@@ -78,26 +75,13 @@ class _FilterPill extends StatelessWidget {
             width: 1,
           ),
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (icon != null) ...[
-              Icon(
-                icon,
-                size: 14,
-                color: isSelected ? Colors.black : Colors.white70,
-              ),
-              const SizedBox(width: 4),
-            ],
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                color: isSelected ? Colors.black : Colors.white70,
-              ),
-            ),
-          ],
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+            color: isSelected ? Colors.black : Colors.white70,
+          ),
         ),
       ),
     );
