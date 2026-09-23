@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
+import '../../core/constants/app_strings.dart';
 import '../providers/library_provider.dart';
+import '../../core/constants/constants.dart';
 import '../widgets/comic_card.dart';
 import '../widgets/delete_confirmation_dialog.dart';
 import '../widgets/search_input.dart';
@@ -37,6 +39,11 @@ class _BookmarkPageState extends State<BookmarkPage> {
       appBar: AppBar(
         title: const Text('Komik Tersimpan'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.download_for_offline_outlined),
+            tooltip: AppStrings.navDownloads,
+            onPressed: () => context.push('/downloads'),
+          ),
           Consumer<LibraryProvider>(
             builder: (context, provider, _) {
               if (provider.bookmarks.isEmpty) return const SizedBox.shrink();
@@ -91,9 +98,9 @@ class _BookmarkPageState extends State<BookmarkPage> {
 
           return GridView.builder(
             padding: const EdgeInsets.all(8),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              childAspectRatio: 0.7,
+            gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+              maxCrossAxisExtent: 180,
+              childAspectRatio: 0.68,
               crossAxisSpacing: 8,
               mainAxisSpacing: 8,
             ),
@@ -102,6 +109,8 @@ class _BookmarkPageState extends State<BookmarkPage> {
               final comic = bookmarkList[index];
               return ComicCard(
                 comic: comic,
+                enableRetry: index < 20,
+                httpHeaders: AppConstants.imageHeaders,
                 onDelete: () {
                    showDialog(
                     context: context,
@@ -132,3 +141,4 @@ class _BookmarkPageState extends State<BookmarkPage> {
     );
   }
 }
+

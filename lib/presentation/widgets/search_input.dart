@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 
 class SearchInput extends StatefulWidget {
@@ -23,6 +24,8 @@ class SearchInput extends StatefulWidget {
 }
 
 class _SearchInputState extends State<SearchInput> {
+  Timer? _debounceTimer;
+
   @override
   void initState() {
     super.initState();
@@ -31,12 +34,36 @@ class _SearchInputState extends State<SearchInput> {
 
   @override
   void dispose() {
+    _debounceTimer?.cancel();
     widget.controller.removeListener(_handleTextChanged);
     super.dispose();
   }
 
   void _handleTextChanged() {
     if (mounted) setState(() {});
+  }
+
+  void _onChanged(String val) {
+    _debounceTimer?.cancel();
+    _debounceTimer = Timer(const Duration(milliseconds: 500), () {
+      if (mounted && widget.onChanged != null) {
+        widget.onChanged!(val);
+      }
+    });
+  }
+
+  void _onClear() {
+    _debounceTimer?.cancel();
+    widget.controller.clear();
+    if (widget.onClear != null) widget.onClear!();
+    if (widget.onChanged != null) widget.onChanged!('');
+  }
+
+  void _onSubmitted(String val) {
+    _debounceTimer?.cancel();
+    if (widget.onSubmitted != null) {
+      widget.onSubmitted!(val);
+    }
   }
 
   @override
@@ -55,11 +82,7 @@ class _SearchInputState extends State<SearchInput> {
             if (widget.controller.text.isNotEmpty)
               IconButton(
                 icon: const Icon(Icons.clear, size: 18, color: Colors.grey),
-                onPressed: () {
-                  widget.controller.clear();
-                  if (widget.onClear != null) widget.onClear!();
-                  if (widget.onChanged != null) widget.onChanged!('');
-                },
+                onPressed: _onClear,
               ),
             if (widget.suffixIcon != null) widget.suffixIcon!,
           ],
@@ -80,8 +103,8 @@ class _SearchInputState extends State<SearchInput> {
         fillColor: const Color(0xFF2C2C2C),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
       ),
-      onChanged: widget.onChanged,
-      onSubmitted: widget.onSubmitted,
+      onChanged: widget.onChanged != null ? _onChanged : null,
+      onSubmitted: _onSubmitted,
     );
   }
 }

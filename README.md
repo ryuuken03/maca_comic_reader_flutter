@@ -3,24 +3,27 @@
 Maca Komik adalah aplikasi pembaca komik lintas-platform berperforma tinggi yang dibangun menggunakan **Flutter**. Aplikasi ini murni memakan jalur REST API JSON (Tanpa Scraping HTML kuno), dilengkapi sistem pencegahan blokir *Cloudflare*, dan fitur koleksi/pengingat (*Bookmark & History*) otomatis yang tertanam di SQLite lokal (Offline).
 
 ## 🌟 Fitur Utama
-- **Arsitektur Bersih (Clean Architecture)**: Dipisahkan menjadi lapisan Data (Repository/Model) dan Presentasi (Specialized Providers) untuk skalabilitas tinggi.
-- **Efisien State Management**: Menggunakan 4 Provider spesifik (`Home`, `Detail`, `Reader`, `Library`) guna performa render yang lebih ringan dan kode yang terorganisir.
-- **Antarmuka Interaktif**: Navigasi menggunakan *GoRouter* (Instan & Bebas Lag) dengan UI yang mendukung Dark Mode penuh (Toolbar konsisten).
-- **Eksplorasi Katalog Komik**: Menarik detail katalog dari sistem komik terintegrasi dengan filter genre yang dinamis.
-- **Mode Baca (*Reader*) Optimal**: Penampil halaman memanjang (*Full-Width Infinite Scroll*) menggunakan `CachedNetworkImage` ber-Header HTTP tingkat lanjut.
-- **Riwayat & Koleksi Cerdas (SQLite)**: Sinkronisasi otomatis ke _Database Offline_ untuk menyimpan progres baca (History) dan daftar favorit (Bookmark).
+- **Arsitektur Bersih (Clean Architecture)**: Dipisahkan menjadi lapisan Data (Repository/Model/Service) dan Presentasi (Specialized Providers) untuk skalabilitas tinggi.
+- **Efisien State Management**: Menggunakan Provider terspesialisasi (`Home`, `Detail`, `Reader`, `Library`, `Settings`, `Download`) guna performa render yang ringan dan modular.
+- **Mode Offline & Download Manager**: Pengguna dapat mengunduh chapter komik untuk dibaca tanpa kuota. Menggunakan *zero-buffer streaming I/O* langsung ke disk (RAM < 10 MB) dan *concurrency pool* (2–3 gambar paralel + jitter anti-bot).
+- **Mode Baca Optimal & Adaptif**: Penampil gambar memanjang (*Webtoon*) dan per halaman (*Manga PageView* RTL/LTR) dengan pembatasan bitmap `cacheWidth`/`memCacheWidth` demi mencegah crash OOM.
+- **Riwayat, Koleksi & Unduhan Cerdas (SQLite v8)**: Sinkronisasi otomatis progres baca (*History*), daftar favorit (*Bookmark*), pengaturan preferensi (*app_settings*), dan katalog offline (*downloaded_chapters*).
+- **Dashboard Penyimpanan & Granular Cache Eviction**: Manajemen mandiri cache thumbnail, cache reader, dan file unduhan chapter komik langsung dari menu Pengaturan.
 
 ## 🏗️ Desain Arsitektur
-Proyek ini mengikuti pola **Clean Architecture** sederhana:
+Proyek ini mengikuti pola **Clean Architecture**:
 - **Data Layer**: 
-  - `ScraperService`: Penanggung jawab pengambilan data API.
-  - `DatabaseHelper`: Penanggung jawab persistensi lokal SQLite.
+  - `ScraperService`: Penanggung jawab pengambilan data API REST.
+  - `DownloadService`: Penanggung jawab antrean download chapter, streaming I/O, dan concurrency pool.
+  - `DatabaseHelper`: Penanggung jawab persistensi lokal SQLite (Bookmarks, History, Settings, Downloaded Chapters).
   - `ComicRepository`: *Single Source of Truth* yang mengoordinasikan sumber data untuk UI.
-- **Presentation Layer (Providers)**:
-  - `HomeProvider`: Mengelola feed beranda, pencarian, dan penemuan komik.
-  - `DetailProvider`: Mengelola informasi detail komik dan daftar chapter.
-  - `ReaderProvider`: Mengelola penampil gambar chapter dan metadata pembaca.
-  - `LibraryProvider`: Mengelola sinkronisasi Bookmark dan Riwayat Baca.
+- **Presentation Layer (Providers & Pages)**:
+  - `HomeProvider` & `HomePage`: Mengelola feed beranda, pencarian, dan grid adaptif komik.
+  - `DetailProvider` & `DetailPage`: Mengelola detail komik, list chapter, dan trigger download chapter.
+  - `ReaderProvider` & `ReaderPage`: Mengelola penampil gambar chapter (online via `CachedNetworkImage` dan offline via `Image.file`).
+  - `LibraryProvider` & `BookmarkPage` / `HistoryPage`: Mengelola sinkronisasi Bookmark dan Riwayat Baca.
+  - `SettingsProvider` & `SettingsPage`: Mengelola preferensi baca global dan kalkulator disk cache.
+  - `DownloadProvider` & `DownloadsPage`: Mengelola status unduhan aktif, tracking progres, dan penghapusan chapter lokal.
 
 ---
 

@@ -11,12 +11,14 @@ class DetailProvider with ChangeNotifier {
   bool _isLoading = false;
   bool get isLoading => _isLoading;
 
-  Future<void> fetchDetail(String url) async {
+  Future<void> fetchDetail(String url, {bool forceRefresh = false}) async {
     _isLoading = true;
-    _detailComic = null;
+    if (forceRefresh) {
+      _detailComic = null;
+    }
     notifyListeners();
     try {
-      _detailComic = await _repository.getDetailComic(url);
+      _detailComic = await _repository.getDetailComic(url, forceRefresh: forceRefresh);
     } catch (e) {
       debugPrint('Error fetchDetail: $e');
     }

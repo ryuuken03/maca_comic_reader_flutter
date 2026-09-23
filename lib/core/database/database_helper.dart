@@ -1,6 +1,7 @@
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import '../../data/models/comic_model.dart';
+import '../../data/models/downloaded_chapter_model.dart';
 
 class DatabaseHelper {
   static final DatabaseHelper instance = DatabaseHelper._init();
@@ -18,7 +19,7 @@ class DatabaseHelper {
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, filePath);
 
-    return await openDatabase(path, version: 4, onCreate: _createDB, onUpgrade: _onUpgrade);
+    return await openDatabase(path, version: 8, onCreate: _createDB, onUpgrade: _onUpgrade);
   }
 
   Future _createDB(Database db, int version) async {
@@ -37,7 +38,10 @@ CREATE TABLE bookmarks (
   type $textTypeNull,
   status $textTypeNull,
   format $textTypeNull,
-  updatedAt $textTypeNull
+  updatedAt $textTypeNull,
+  isPinned INTEGER DEFAULT 0,
+  isHot INTEGER DEFAULT 0,
+  isRecommended INTEGER DEFAULT 0
 )
 ''');
 
@@ -54,9 +58,36 @@ CREATE TABLE history (
   type $textTypeNull,
   status $textTypeNull,
   format $textTypeNull,
-  updatedAt $textTypeNull
+  updatedAt $textTypeNull,
+  isPinned INTEGER DEFAULT 0,
+  isHot INTEGER DEFAULT 0,
+  isRecommended INTEGER DEFAULT 0
 )
 ''');
+
+    await db.execute('''
+CREATE TABLE IF NOT EXISTS app_settings (
+  key TEXT PRIMARY KEY,
+  value TEXT
+)
+''');
+
+    await db.execute('''
+CREATE TABLE IF NOT EXISTS downloaded_chapters (
+  id TEXT PRIMARY KEY,
+  comic_id TEXT NOT NULL,
+  comic_title TEXT NOT NULL,
+  comic_thumb_url TEXT,
+  chapter_title TEXT NOT NULL,
+  chapter_url TEXT NOT NULL,
+  local_path TEXT NOT NULL,
+  page_count INTEGER NOT NULL,
+  size_bytes INTEGER DEFAULT 0,
+  downloaded_at INTEGER NOT NULL
+)
+''');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_downloaded_comic_id ON downloaded_chapters (comic_id)');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_downloaded_chapter_url ON downloaded_chapters (chapter_url)');
   }
 
   Future _onUpgrade(Database db, int oldVersion, int newVersion) async {
@@ -90,6 +121,46 @@ CREATE TABLE history (
 
     if (oldVersion < 4) {
       await db.execute('CREATE INDEX idx_bookmarks_link ON bookmarks (link)');
+    }
+
+    if (oldVersion < 5) {
+      await db.execute('ALTER TABLE bookmarks ADD COLUMN isPinned INTEGER DEFAULT 0');
+      await db.execute('ALTER TABLE history ADD COLUMN isPinned INTEGER DEFAULT 0');
+    }
+
+    if (oldVersion < 6) {
+      await db.execute('ALTER TABLE bookmarks ADD COLUMN isHot INTEGER DEFAULT 0');
+      await db.execute('ALTER TABLE bookmarks ADD COLUMN isRecommended INTEGER DEFAULT 0');
+      await db.execute('ALTER TABLE history ADD COLUMN isHot INTEGER DEFAULT 0');
+      await db.execute('ALTER TABLE history ADD COLUMN isRecommended INTEGER DEFAULT 0');
+    }
+
+    if (oldVersion < 7) {
+      await db.execute('''
+CREATE TABLE IF NOT EXISTS app_settings (
+  key TEXT PRIMARY KEY,
+  value TEXT
+)
+''');
+    }
+
+    if (oldVersion < 8) {
+      await db.execute('''
+CREATE TABLE IF NOT EXISTS downloaded_chapters (
+  id TEXT PRIMARY KEY,
+  comic_id TEXT NOT NULL,
+  comic_title TEXT NOT NULL,
+  comic_thumb_url TEXT,
+  chapter_title TEXT NOT NULL,
+  chapter_url TEXT NOT NULL,
+  local_path TEXT NOT NULL,
+  page_count INTEGER NOT NULL,
+  size_bytes INTEGER DEFAULT 0,
+  downloaded_at INTEGER NOT NULL
+)
+''');
+      await db.execute('CREATE INDEX IF NOT EXISTS idx_downloaded_comic_id ON downloaded_chapters (comic_id)');
+      await db.execute('CREATE INDEX IF NOT EXISTS idx_downloaded_chapter_url ON downloaded_chapters (chapter_url)');
     }
   }
 
@@ -126,24 +197,45 @@ CREATE TABLE history (
 
   Future<void> saveBookmark(ComicModel comic) async {
     final db = await instance.database;
-    final map = comic.toMap();
-    map['updatedAt'] = DateTime.now().toIso8601String();
-    await db.insert(
-        'bookmarks',
-        map,
-        conflictAlgorithm: ConflictAlgorithm.replace
+
+    // Cek apakah komik ini sebelumnya sudah pernah disimpan dan memiliki status isPinned
+    final existing = await db.query(
+      'bookmarks',
+      columns: ['isPinned'],
+      where: 'link = ?',
+      whereArgs: [comic.link],
+      limit: 1,
     );
+
+    int isPinned = comic.isPinned ? 1 : 0;
+    if (existing.isNotEmpty && isPinned == 0) {
+      isPinned = (existing.first['isPinned'] as int?) ?? 0;
+    }
+
+    // Hapus bookmark lama dengan url detail (link) yang sama agar diganti sepenuhnya
+    await db.delete('bookmarks', where: 'link = ?', whereArgs: [comic.link]);
+
+    final map = comic.toMap();
+    map['isPinned'] = isPinned;
+    map['updatedAt'] = DateTime.now().toIso8601String();
+    await db.insert('bookmarks', map);
   }
 
   Future<List<ComicModel>> getBookmarks() async {
     final db = await instance.database;
     final maps = await db.query('bookmarks', orderBy: 'updatedAt DESC');
 
-    return maps.map((map) {
+    final seenLinks = <String>{};
+    final List<ComicModel> result = [];
+    for (final map in maps) {
       final m = Map<String, dynamic>.from(map);
       m.remove('updatedAt');
-      return ComicModel.fromMap(m);
-    }).toList();
+      final comic = ComicModel.fromMap(m);
+      if (seenLinks.add(comic.link)) {
+        result.add(comic);
+      }
+    }
+    return result;
   }
 
   Future<void> removeBookmark(String link) async {
@@ -170,9 +262,114 @@ CREATE TABLE history (
     final db = await instance.database;
     final maps = await db.query(
       'bookmarks',
+      columns: ['id'],
       where: 'link = ? AND latestChapter = ?',
       whereArgs: [link, index],
     );
     return maps.isNotEmpty;
+  }
+
+  // SETTINGS PERSISTENCE
+  Future<void> setSetting(String key, String value) async {
+    final db = await instance.database;
+    await db.insert(
+      'app_settings',
+      {'key': key, 'value': value},
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<String?> getSetting(String key) async {
+    final db = await instance.database;
+    final maps = await db.query(
+      'app_settings',
+      columns: ['value'],
+      where: 'key = ?',
+      whereArgs: [key],
+      limit: 1,
+    );
+    if (maps.isNotEmpty) {
+      return maps.first['value'] as String?;
+    }
+    return null;
+  }
+
+  // DOWNLOADED CHAPTERS
+  Future<void> saveDownloadedChapter(DownloadedChapterModel chapter) async {
+    final db = await instance.database;
+    await db.insert(
+      'downloaded_chapters',
+      chapter.toMap(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<List<DownloadedChapterModel>> getAllDownloadedChapters() async {
+    final db = await instance.database;
+    final maps = await db.query(
+      'downloaded_chapters',
+      orderBy: 'downloaded_at DESC',
+    );
+    return maps.map((m) => DownloadedChapterModel.fromMap(m)).toList();
+  }
+
+  Future<List<DownloadedChapterModel>> getDownloadedChaptersByComic(String comicId) async {
+    final db = await instance.database;
+    final maps = await db.query(
+      'downloaded_chapters',
+      where: 'comic_id = ?',
+      whereArgs: [comicId],
+      orderBy: 'downloaded_at DESC',
+    );
+    return maps.map((m) => DownloadedChapterModel.fromMap(m)).toList();
+  }
+
+  Future<DownloadedChapterModel?> getDownloadedChapterByUrl(String chapterUrl) async {
+    final db = await instance.database;
+    final maps = await db.query(
+      'downloaded_chapters',
+      where: 'chapter_url = ?',
+      whereArgs: [chapterUrl],
+      limit: 1,
+    );
+    if (maps.isNotEmpty) {
+      return DownloadedChapterModel.fromMap(maps.first);
+    }
+    return null;
+  }
+
+  Future<bool> isChapterDownloaded(String chapterUrl) async {
+    final db = await instance.database;
+    final maps = await db.query(
+      'downloaded_chapters',
+      columns: ['id'],
+      where: 'chapter_url = ?',
+      whereArgs: [chapterUrl],
+      limit: 1,
+    );
+    return maps.isNotEmpty;
+  }
+
+  Future<void> deleteDownloadedChapter(String chapterUrl) async {
+    final db = await instance.database;
+    await db.delete(
+      'downloaded_chapters',
+      where: 'chapter_url = ?',
+      whereArgs: [chapterUrl],
+    );
+  }
+
+  Future<void> deleteDownloadedChaptersByComic(String comicId) async {
+    final db = await instance.database;
+    await db.delete(
+      'downloaded_chapters',
+      where: 'comic_id = ?',
+      whereArgs: [comicId],
+    );
+  }
+
+  Future<void> clearAllDownloadedChapters() async {
+    final db = await instance.database;
+    await db.delete('downloaded_chapters');
   }
 }

@@ -8,6 +8,9 @@ class ComicModel {
   final String status;
   final String format;
   final String updatedAt;
+  final bool isPinned;
+  final bool isHot;
+  final bool isRecommended;
 
   ComicModel({
     required this.title,
@@ -19,6 +22,9 @@ class ComicModel {
     this.status = '',
     this.format = '',
     this.updatedAt = '',
+    this.isPinned = false,
+    this.isHot = false,
+    this.isRecommended = false,
   });
 
   Map<String, dynamic> toMap() {
@@ -32,6 +38,9 @@ class ComicModel {
       'status': status,
       'format': format,
       'updatedAt': updatedAt,
+      'isPinned': isPinned ? 1 : 0,
+      'isHot': isHot ? 1 : 0,
+      'isRecommended': isRecommended ? 1 : 0,
     };
   }
 
@@ -46,6 +55,18 @@ class ComicModel {
       status: map['status']?.toString() ?? '',
       format: map['format']?.toString() ?? '',
       updatedAt: map['updatedAt']?.toString() ?? '',
+      isPinned: map['isPinned'] == true ||
+          map['isPinned'] == 1 ||
+          map['isPinned'] == 'true' ||
+          map['isPinned'] == '1',
+      isHot: map['isHot'] == true ||
+          map['isHot'] == 1 ||
+          map['isHot'] == 'true' ||
+          map['isHot'] == '1',
+      isRecommended: map['isRecommended'] == true ||
+          map['isRecommended'] == 1 ||
+          map['isRecommended'] == 'true' ||
+          map['isRecommended'] == '1',
     );
   }
 

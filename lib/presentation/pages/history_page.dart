@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import '../providers/library_provider.dart';
+import '../../core/constants/constants.dart';
 import '../widgets/comic_card.dart';
 import '../widgets/delete_confirmation_dialog.dart';
 import '../widgets/search_input.dart';
@@ -91,9 +92,9 @@ class _HistoryPageState extends State<HistoryPage> {
 
           return GridView.builder(
             padding: const EdgeInsets.all(8),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              childAspectRatio: 0.7,
+            gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+              maxCrossAxisExtent: 180,
+              childAspectRatio: 0.68,
               crossAxisSpacing: 8,
               mainAxisSpacing: 8,
             ),
@@ -102,6 +103,8 @@ class _HistoryPageState extends State<HistoryPage> {
               final comic = historyList[index];
               return ComicCard(
                 comic: comic,
+                enableRetry: index < 20,
+                httpHeaders: AppConstants.imageHeaders,
                 onDelete: () {
                    showDialog(
                     context: context,
@@ -132,3 +135,4 @@ class _HistoryPageState extends State<HistoryPage> {
     );
   }
 }
+

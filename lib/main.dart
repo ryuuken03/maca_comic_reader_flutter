@@ -5,13 +5,22 @@ import 'presentation/providers/home_provider.dart';
 import 'presentation/providers/detail_provider.dart';
 import 'presentation/providers/reader_provider.dart';
 import 'presentation/providers/library_provider.dart';
-import 'presentation/pages/home_page.dart';
-import 'presentation/pages/detail_page.dart';
-import 'presentation/pages/reader_page.dart';
-import 'presentation/pages/bookmark_page.dart';
+import 'presentation/providers/settings_provider.dart';
+import 'presentation/providers/download_provider.dart';
+import 'presentation/pages/home/home_page.dart';
+import 'presentation/pages/detail/detail_page.dart';
+import 'presentation/pages/reader/reader_page.dart';
 import 'presentation/pages/comic_list_page.dart';
+import 'presentation/pages/settings_page.dart';
+import 'presentation/pages/collection/collection_page.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  // Safe and responsive image cache limits to prevent OOM on lower-end devices while keeping smooth scrolling
+  PaintingBinding.instance.imageCache.maximumSizeBytes = 128 * 1024 * 1024; // 128 MB
+  PaintingBinding.instance.imageCache.maximumSize = 120; // 120 images
+
   runApp(
     MultiProvider(
       providers: [
@@ -19,6 +28,8 @@ void main() {
         ChangeNotifierProvider(create: (_) => DetailProvider()),
         ChangeNotifierProvider(create: (_) => ReaderProvider()),
         ChangeNotifierProvider(create: (_) => LibraryProvider()),
+        ChangeNotifierProvider(create: (_) => SettingsProvider()),
+        ChangeNotifierProvider(create: (_) => DownloadProvider()),
       ],
       child: const MyApp(),
     ),
@@ -54,8 +65,12 @@ class MyApp extends StatelessWidget {
           },
         ),
         GoRoute(
+          path: '/collection',
+          builder: (context, state) => const CollectionPage(initialTabIndex: 0),
+        ),
+        GoRoute(
           path: '/bookmark',
-          builder: (context, state) => const BookmarkPage(),
+          builder: (context, state) => const CollectionPage(initialTabIndex: 0),
         ),
         GoRoute(
           path: '/list',
@@ -67,6 +82,14 @@ class MyApp extends StatelessWidget {
               type: extra['type'] as String?,
             );
           },
+        ),
+        GoRoute(
+          path: '/settings',
+          builder: (context, state) => const SettingsPage(),
+        ),
+        GoRoute(
+          path: '/downloads',
+          builder: (context, state) => const CollectionPage(initialTabIndex: 1),
         ),
       ],
     );

@@ -21,14 +21,14 @@ class HomeProvider with ChangeNotifier {
   bool _isLoading = false;
   bool get isLoading => _isLoading;
 
-  Future<void> fetchHomeData() async {
+  Future<void> fetchHomeData({int take = 20}) async {
     _isLoading = true;
     notifyListeners();
     try {
       final futures = await Future.wait([
         _repository.getPopularComics(),
         _repository.getProjectComics(),
-        _repository.fetchSeries(preset: 'rilisan_terbaru', page: 1),
+        _repository.fetchSeries(preset: 'rilisan_terbaru', page: 1, take: take),
       ]);
       _popularComics = futures[0];
       _projectComics = futures[1];
@@ -63,6 +63,7 @@ class HomeProvider with ChangeNotifier {
     String? type,
     List<String>? genres,
     int page = 1,
+    int take = 20,
   }) async {
     _isLoading = true;
     if (page == 1) {
@@ -71,22 +72,42 @@ class HomeProvider with ChangeNotifier {
     }
     notifyListeners();
     try {
-      debugPrint('fetchDiscover Request: searchQuery=$searchQuery, preset=$preset, type=$type, genres=$genres, page=$page');
-      final result = await _repository.fetchSeries(
-        searchQuery: searchQuery,
-        preset: preset,
-        type: type,
-        genres: genres,
-        page: page,
-      );
-      debugPrint('fetchDiscover Response: received ${result.length} comics. Titles: ${result.take(5).map((c) => c.title).toList()}');
-      if (result.isEmpty) {
-        _hasNextPage = false;
-      } else {
-        if (page == 1) {
-          _discoverComics = result;
+      if(preset == "rilisan_terbaru"){
+        final result = await _repository.fetchSeriesSort(
+          searchQuery: searchQuery,
+          sort: "latest",
+          sortOrder: "desc",
+          type: type,
+          genres: genres,
+          page: page,
+          take: take,
+        );
+        if (result.isEmpty) {
+          _hasNextPage = false;
         } else {
-          _discoverComics.addAll(result);
+          if (page == 1) {
+            _discoverComics = result;
+          } else {
+            _discoverComics.addAll(result);
+          }
+        }
+      }else{
+        final result = await _repository.fetchSeries(
+          searchQuery: searchQuery,
+          preset: preset,
+          type: type,
+          genres: genres,
+          page: page,
+          take: take,
+        );
+        if (result.isEmpty) {
+          _hasNextPage = false;
+        } else {
+          if (page == 1) {
+            _discoverComics = result;
+          } else {
+            _discoverComics.addAll(result);
+          }
         }
       }
     } catch (e) {

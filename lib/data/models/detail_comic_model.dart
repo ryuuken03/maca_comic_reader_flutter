@@ -9,6 +9,9 @@ class DetailComicModel {
   final String status;
   final String type;
   final String format;
+  final bool isPinned;
+  final bool isHot;
+  final bool isRecommended;
 
   DetailComicModel({
     required this.comic,
@@ -18,5 +21,20 @@ class DetailComicModel {
     this.status = '',
     this.type = '',
     this.format = '',
-  });
+    bool? isPinned,
+    bool? isHot,
+    bool? isRecommended,
+  })  : isPinned = isPinned ?? comic.isPinned,
+        isHot = isHot ?? comic.isHot,
+        isRecommended = isRecommended ?? comic.isRecommended;
+
+  String get statusLabel => (status.isNotEmpty ? status : comic.status).toUpperCase();
+  String get typeLabel => (type.isNotEmpty ? type : comic.type).toUpperCase();
+  String get formatEmoji {
+    final f = (format.isNotEmpty ? format : comic.format).toLowerCase();
+    if (f.contains('manga')) return '🇯🇵';
+    if (f.contains('manhwa')) return '🇰🇷';
+    if (f.contains('manhua')) return '🇨🇳';
+    return '';
+  }
 }

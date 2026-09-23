@@ -10,11 +10,11 @@ class ComicRepository {
 
   // HOME FEEDS
   Future<List<ComicModel>> getPopularComics() {
-    return _scraperService.fetchSeries(preset: 'popular_all', take: 10, includeMeta: true);
+    return _scraperService.fetchSeries(preset: 'popular_all', take: 10);
   }
 
   Future<List<ComicModel>> getProjectComics() {
-    return _scraperService.fetchSeries(preset: 'rilisan_terbaru', type: 'project', take: 20);
+    return _scraperService.fetchSeries(preset: 'rilisan_terbaru', type: 'project', take: 10);
   }
 
   Future<List<ComicModel>> fetchSeries({
@@ -34,19 +34,40 @@ class ComicRepository {
       take: take,
     );
   }
-
-  // DETAILS & GENRES
-  Future<DetailComicModel> getDetailComic(String url) {
-    return _scraperService.getDetailComic(url);
+  Future<List<ComicModel>> fetchSeriesSort({
+    String? searchQuery,
+    String? preset,
+    String? type,
+    String? sort,
+    String? sortOrder,
+    List<String>? genres,
+    int page = 1,
+    int take = 20,
+  }) {
+    return _scraperService.fetchSeries(
+      searchQuery: searchQuery,
+      preset: preset,
+      type: type,
+      genres: genres,
+      sort: sort,
+      sortOrder: sortOrder,
+      page: page,
+      take: take,
+    );
   }
 
-  Future<List<GenreModel>> getGenres() {
-    return _scraperService.getGenres();
+  // DETAILS & GENRES
+  Future<DetailComicModel> getDetailComic(String url, {bool forceRefresh = false}) {
+    return _scraperService.getDetailComic(url, forceRefresh: forceRefresh);
+  }
+
+  Future<List<GenreModel>> getGenres({bool forceRefresh = false}) {
+    return _scraperService.getGenres(forceRefresh: forceRefresh);
   }
 
   // READER
-  Future<ReaderData> getReaderData(String chapterUrl) {
-    return _scraperService.getReaderDataBE(chapterUrl);
+  Future<ReaderData> getReaderData(String chapterUrl, {bool forceRefresh = false}) {
+    return _scraperService.getReaderDataBE(chapterUrl, forceRefresh: forceRefresh);
   }
 
   // DATABASE / LIBRARY

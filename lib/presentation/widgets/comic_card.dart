@@ -1,21 +1,43 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../data/models/comic_model.dart';
+import '../../core/constants/constants.dart';
+import '../../util/util.dart';
 import 'package:go_router/go_router.dart';
 
-class ComicCard extends StatelessWidget {
+class ComicCard extends StatefulWidget {
   final ComicModel comic;
   final VoidCallback? onTap;
   final VoidCallback? onDelete;
+  final bool enableRetry;
+  final Map<String, String>? httpHeaders;
 
-  const ComicCard({Key? key, required this.comic, this.onTap, this.onDelete}) : super(key: key);
+  const ComicCard({
+    Key? key,
+    required this.comic,
+    this.onTap,
+    this.onDelete,
+    this.enableRetry = false,
+    this.httpHeaders,
+  }) : super(key: key);
+  @override
+  _ComicCardState createState() => _ComicCardState();
+}
+
+class _ComicCardState extends State<ComicCard> {
+  int _retryKey = 0;
+
+  void _retry() {
+    setState(() {
+      _retryKey++;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      onTap: onTap ?? () {
-        context.push('/detail', extra: comic.link);
+      onTap: widget.onTap ?? () {
+        context.push('/detail', extra: widget.comic.link);
       },
       child: Card(
         clipBehavior: Clip.antiAlias,
@@ -25,101 +47,111 @@ class ComicCard extends StatelessWidget {
           fit: StackFit.expand,
           children: [
             // Background Image
-            CachedNetworkImage(
-              imageUrl: comic.thumbUrl.isNotEmpty
-                  ? comic.thumbUrl
-                  : 'https://via.placeholder.com/150',
-              fit: BoxFit.cover,
-              alignment: Alignment.topCenter,
-              errorWidget: (context, url, error) => const Center(child: Icon(Icons.error)),
+            KeyedSubtree(
+              key: ValueKey('${widget.comic.thumbUrl}_$_retryKey'),
+              child: CachedNetworkImage(
+                imageUrl: widget.comic.thumbUrl.isNotEmpty
+                    ? widget.comic.thumbUrl
+                    : 'https://via.placeholder.com/150',
+                httpHeaders: widget.httpHeaders ?? AppConstants.imageHeaders,
+                memCacheWidth: 350,
+                maxWidthDiskCache: 600,
+                fit: BoxFit.cover,
+                alignment: Alignment.topCenter,
+                errorWidget: (context, url, error) => widget.enableRetry
+                    ? Center(
+                        child: IconButton(
+                          icon: const Icon(Icons.refresh, color: Colors.white),
+                          onPressed: _retry,
+                        ),
+                      )
+                    : const Center(child: Icon(Icons.error)),
+              ),
             ),
-            
-            // Bottom Info Overlay with Glassmorphism
+
+            // Bottom Info Overlay with Smooth Gradient
             Positioned(
               bottom: 0,
               left: 0,
               right: 0,
-              child: ClipRRect(
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 8.0, sigmaY: 8.0),
-                  child: Container(
-                    padding: const EdgeInsets.all(8.0),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.45), // 45% translucent black
-                      border: Border(
-                        top: BorderSide(
-                          color: Colors.white.withOpacity(0.15),
-                          width: 0.5,
+              child: Container(
+                padding: const EdgeInsets.all(8.0),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.bottomCenter,
+                    end: Alignment.topCenter,
+                    colors: [
+                      Colors.black.withOpacity(0.92),
+                      Colors.black.withOpacity(0.70),
+                      Colors.transparent,
+                    ],
+                    stops: const [0.0, 0.7, 1.0],
+                  ),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Chips (Status/Type)
+                    if (widget.comic.statusLabel.isNotEmpty || widget.comic.typeLabel.isNotEmpty) ...[
+                      Wrap(
+                        spacing: 4.0,
+                        runSpacing: 4.0,
+                        children: [
+                          if (widget.comic.statusLabel.isNotEmpty)
+                            _buildChip(widget.comic.statusLabel, Colors.blue),
+                          if (widget.comic.typeLabel.isNotEmpty)
+                            _buildChip(widget.comic.typeLabel, Colors.orange),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                    ],
+
+                    // Title
+                    SizedBox(
+                      height: 34,
+                      child: Text(
+                        widget.comic.title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                          height: 1.2,
+                          shadows: [
+                            Shadow(offset: Offset(0, 1), blurRadius: 2.0, color: Colors.black),
+                          ],
                         ),
                       ),
                     ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Chips (Status/Type)
-                        if (comic.statusLabel.isNotEmpty || comic.typeLabel.isNotEmpty) ...[
-                          Wrap(
-                            spacing: 4.0,
-                            runSpacing: 4.0,
-                            children: [
-                              if (comic.statusLabel.isNotEmpty)
-                                _buildChip(comic.statusLabel, Colors.blue),
-                              if (comic.typeLabel.isNotEmpty)
-                                _buildChip(comic.typeLabel, Colors.orange),
-                            ],
-                          ),
-                          const SizedBox(height: 4),
-                        ],
-                        
-                        // Title
-                        SizedBox(
-                          height: 36, // Fix height for 2 lines
-                          child: Text(
-                            comic.title,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 13,
-                              color: Colors.white,
-                              shadows: [
-                                Shadow(offset: Offset(0, 1), blurRadius: 2.0, color: Colors.black),
-                              ],
-                            ),
-                          ),
-                        ),
-                        
-                        // Chapter
-                        const SizedBox(height: 2),
-                        Text(
-                          (comic.latestChapter == null || comic.latestChapter!.isEmpty)
-                              ? ''
-                              : (comic.latestChapter!.toLowerCase().contains('chapter')
-                                  ? comic.latestChapter!
-                                  : 'Ch. ${comic.latestChapter!}'),
-                          style: const TextStyle(
-                            fontSize: 11,
-                            color: Colors.white70,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
+                    
+                    // Chapter & Updated Time
+                    const SizedBox(height: 2),
+                    Text(
+                      _formatChapter(widget.comic.latestChapter, widget.comic.updatedAt),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: Colors.white70,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
-                  ),
+                  ],
                 ),
               ),
             ),
             
             // Delete Button
-            if (onDelete != null)
+            if (widget.onDelete != null)
               Positioned(
                 top: 4,
                 right: 4,
                 child: Material(
                   color: Colors.transparent,
                   child: InkWell(
-                    onTap: onDelete,
+                    onTap: widget.onDelete,
                     customBorder: const CircleBorder(),
                     child: Container(
                       padding: const EdgeInsets.all(4),
@@ -133,23 +165,69 @@ class ComicCard extends StatelessWidget {
                 ),
               ),
 
-            // Format Flags
-            if (comic.formatEmoji.isNotEmpty)
+            // Pinned Icon Badge
+            if (widget.comic.isPinned)
               Positioned(
                 top: 4,
-                left: 4,
+                right: widget.onDelete != null ? 32 : 4,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                  padding: const EdgeInsets.all(4),
                   decoration: BoxDecoration(
-                    color: Colors.black26,
-                    borderRadius: BorderRadius.circular(4),
+                    color: Colors.black.withOpacity(0.65),
+                    shape: BoxShape.circle,
                   ),
-                  child: Text(
-                    comic.formatEmoji,
-                    style: const TextStyle(fontSize: 12),
+                  child: const Icon(
+                    Icons.push_pin_rounded,
+                    size: 16,
+                    color: AppConstants.primaryColor,
                   ),
                 ),
               ),
+
+            // Top Left Badges (Voratoon Source Label & Format Flag below)
+            Positioned(
+              top: 6,
+              left: 6,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2.5),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.92),
+                      borderRadius: BorderRadius.circular(4),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.25),
+                          blurRadius: 3,
+                          offset: const Offset(0, 1),
+                        ),
+                      ],
+                    ),
+                    child: Image.asset(
+                      'lib/assets/logo_voratoon_1.png',
+                      height: 12,
+                      fit: BoxFit.contain,
+                    ),
+                  ),
+                  if (widget.comic.formatEmoji.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.black54,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        widget.comic.formatEmoji,
+                        style: const TextStyle(fontSize: 10),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
           ],
         ),
       ),
@@ -172,6 +250,38 @@ class ComicCard extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  String _formatChapter(String? chapter, [String? updatedAt]) {
+    String formattedChapter = '';
+    if (chapter != null && chapter.trim().isNotEmpty) {
+      final trimmed = chapter.trim();
+      final lower = trimmed.toLowerCase();
+      if (lower.startsWith('ch') || lower.contains('chapter') || lower.contains('oneshot')) {
+        formattedChapter = trimmed;
+      } else {
+        formattedChapter = 'Ch. $trimmed';
+      }
+    }
+
+    String formattedTime = '';
+    if (updatedAt != null && updatedAt.trim().isNotEmpty) {
+      final trimmed = updatedAt.trim();
+      if (trimmed.contains('lalu') || trimmed == 'Baru saja') {
+        formattedTime = trimmed;
+      } else {
+        formattedTime = timeAgo(trimmed);
+      }
+    }
+
+    if (formattedChapter.isNotEmpty && formattedTime.isNotEmpty) {
+      return '$formattedChapter • $formattedTime';
+    } else if (formattedChapter.isNotEmpty) {
+      return formattedChapter;
+    } else if (formattedTime.isNotEmpty) {
+      return formattedTime;
+    }
+    return '';
   }
 }
 
