@@ -43,3 +43,17 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Local configuration and specific project overrides
+linux/flutter/
+pubspec.yaml
+pubspec.lock
+analysis_options.yaml
+.vscode/settings.json
+android/gradle.properties
+android/settings.gradle.kts
+android/app/build.gradle.kts
+android/app/src/main/AndroidManifest.xml
+android/build/reports/problems/problems-report.html
+android/gradle/wrapper/gradle-wrapper.properties
+

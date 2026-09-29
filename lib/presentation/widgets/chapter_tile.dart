@@ -29,7 +29,7 @@ class ChapterTile extends StatelessWidget {
 
     final comicSlug = comicUrl.contains('/series/')
         ? comicUrl.split('/series/').last.split('/').firstWhere((e) => e.isNotEmpty, orElse: () => 'comic')
-        : 'comic';
+        : comicUrl.split('/').lastWhere((e) => e.isNotEmpty, orElse: () => 'comic');
 
     if (isDownloading) {
       return SizedBox(
@@ -93,10 +93,26 @@ class ChapterTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final actIndexStr = chapter.link.split('/').lastWhere((e) => e.isNotEmpty, orElse: () => '');
-
+    final formattedDate = chapter.displayDate;
     return ListTile(
-      title: Text(chapter.title),
+      dense: true,
+      title: Text(
+        chapter.title,
+        style: const TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+      subtitle: formattedDate.isNotEmpty
+          ? Text(
+              formattedDate,
+              style: const TextStyle(
+                fontSize: 11,
+                color: Colors.white70,
+                fontWeight: FontWeight.w500,
+              ),
+            )
+          : null,
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -104,16 +120,11 @@ class ChapterTile extends StatelessWidget {
           const SizedBox(width: 4),
           Consumer<LibraryProvider>(
             builder: (context, library, child) {
-              return FutureBuilder<bool>(
-                future: library.isBookmarkedReader(comicUrl, actIndexStr),
-                builder: (context, snapshot) {
-                  final isBookmarked = snapshot.data ?? false;
-                  if (!isBookmarked) return const SizedBox.shrink();
-                  return const Padding(
-                    padding: EdgeInsets.only(right: 4.0),
-                    child: Icon(Icons.bookmark, color: Color(0xFFFDD644), size: 18),
-                  );
-                },
+              final isCurrentBookmarked = library.isChapterBookmarked(comicUrl, chapter.link);
+              if (!isCurrentBookmarked) return const SizedBox.shrink();
+              return const Padding(
+                padding: EdgeInsets.only(right: 4.0),
+                child: Icon(Icons.bookmark, color: Color(0xFFFDD644), size: 18),
               );
             },
           ),

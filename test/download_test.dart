@@ -83,7 +83,7 @@ void main() {
             body: MultiProvider(
               providers: [
                 ChangeNotifierProvider(create: (_) => DownloadProvider(autoLoad: false)),
-                ChangeNotifierProvider(create: (_) => LibraryProvider()),
+                ChangeNotifierProvider(create: (_) => LibraryProvider(autoFetch: false)),
               ],
               child: ChapterTile(
                 chapter: chapter,

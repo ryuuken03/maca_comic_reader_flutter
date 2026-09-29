@@ -1,5 +1,6 @@
 import 'comic_model.dart';
 import 'chapter_model.dart';
+import '../../util/util.dart';
 
 class DetailComicModel {
   final ComicModel comic;
@@ -9,6 +10,8 @@ class DetailComicModel {
   final String status;
   final String type;
   final String format;
+  final String updatedAt;
+  final String createdAt;
   final bool isPinned;
   final bool isHot;
   final bool isRecommended;
@@ -21,6 +24,8 @@ class DetailComicModel {
     this.status = '',
     this.type = '',
     this.format = '',
+    this.updatedAt = '',
+    this.createdAt = '',
     bool? isPinned,
     bool? isHot,
     bool? isRecommended,
@@ -35,6 +40,28 @@ class DetailComicModel {
     if (f.contains('manga')) return '🇯🇵';
     if (f.contains('manhwa')) return '🇰🇷';
     if (f.contains('manhua')) return '🇨🇳';
+    return '';
+  }
+
+  String get displayDate {
+    final raw = updatedAt.isNotEmpty
+        ? updatedAt
+        : comic.updatedAt.isNotEmpty
+            ? comic.updatedAt
+            : createdAt.isNotEmpty
+                ? createdAt
+                : comic.createdAt.isNotEmpty
+                    ? comic.createdAt
+                    : chapters.isNotEmpty
+                        ? chapters.first.displayDate
+                        : '';
+    if (raw.isNotEmpty) {
+      final trimmed = raw.trim();
+      if (trimmed.contains('lalu') || trimmed == 'Baru saja') {
+        return trimmed;
+      }
+      return timeAgo(trimmed);
+    }
     return '';
   }
 }

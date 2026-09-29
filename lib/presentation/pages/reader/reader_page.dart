@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../../core/database/database_helper.dart';
 import '../../providers/reader_provider.dart';
+import '../../providers/library_provider.dart';
 import '../../widgets/reader_overlay_widget.dart';
 import 'reader_bottom_bar.dart';
 import 'reader_manga.dart';
@@ -174,7 +175,12 @@ class _ReaderPageState extends State<ReaderPage> {
   }
 
   void _onProviderChanged() {
-    if (!_readerProvider.isLoading) _loadingTimer?.cancel();
+    if (!_readerProvider.isLoading) {
+      _loadingTimer?.cancel();
+      if (mounted) {
+        context.read<LibraryProvider>().fetchHistory();
+      }
+    }
   }
 
   String get _actIndexStr => widget.chapterUrl

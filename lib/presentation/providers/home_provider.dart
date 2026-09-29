@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import '../../data/models/comic_model.dart';
 import '../../data/models/genre_model.dart';
@@ -25,19 +26,29 @@ class HomeProvider with ChangeNotifier {
     _isLoading = true;
     notifyListeners();
     try {
-      final futures = await Future.wait([
-        _repository.getPopularComics(),
-        _repository.getProjectComics(),
-        _repository.fetchSeries(preset: 'rilisan_terbaru', page: 1, take: take),
-      ]);
-      _popularComics = futures[0];
-      _projectComics = futures[1];
-      _homeComics = futures[2];
+      // 1. Muat konten utama (rilisan terbaru) terlebih dahulu agar langsung tampil ke user
+      _homeComics = await _repository.fetchSeries(preset: 'rilisan_terbaru', page: 1, take: take);
+      _isLoading = false;
+      notifyListeners();
+
+      // Jeda jitter manusiawi (180ms - 320ms) untuk mencegah lonjakan request WAF/Cloudflare
+      await Future.delayed(Duration(milliseconds: 180 + Random().nextInt(140)));
+
+      // 2. Muat komik populer secara bertahap
+      _popularComics = await _repository.getPopularComics();
+      notifyListeners();
+
+      // Jeda jitter kedua
+      await Future.delayed(Duration(milliseconds: 180 + Random().nextInt(140)));
+
+      // 3. Muat komik proyek
+      _projectComics = await _repository.getProjectComics();
+      notifyListeners();
     } catch (e) {
       debugPrint('Error fetchHomeData: $e');
+      _isLoading = false;
+      notifyListeners();
     }
-    _isLoading = false;
-    notifyListeners();
   }
 
   Future<void> fetchGenres() async {

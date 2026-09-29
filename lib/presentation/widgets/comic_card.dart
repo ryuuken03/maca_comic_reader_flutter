@@ -42,15 +42,22 @@ class _ComicCardState extends State<ComicCard> {
   @override
   void initState() {
     super.initState();
-    _formattedSubtitle = _formatChapter(widget.comic.latestChapter, widget.comic.updatedAt);
+    final timeStr = widget.comic.updatedAt.isNotEmpty
+        ? widget.comic.updatedAt
+        : widget.comic.createdAt;
+    _formattedSubtitle = _formatChapter(widget.comic.latestChapter, timeStr);
   }
 
   @override
   void didUpdateWidget(ComicCard oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.comic.latestChapter != widget.comic.latestChapter ||
-        oldWidget.comic.updatedAt != widget.comic.updatedAt) {
-      _formattedSubtitle = _formatChapter(widget.comic.latestChapter, widget.comic.updatedAt);
+        oldWidget.comic.updatedAt != widget.comic.updatedAt ||
+        oldWidget.comic.createdAt != widget.comic.createdAt) {
+      final timeStr = widget.comic.updatedAt.isNotEmpty
+          ? widget.comic.updatedAt
+          : widget.comic.createdAt;
+      _formattedSubtitle = _formatChapter(widget.comic.latestChapter, timeStr);
     }
   }
 

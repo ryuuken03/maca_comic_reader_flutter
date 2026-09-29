@@ -93,4 +93,9 @@ class AppStrings {
   static const String confirmDeleteAll = 'Hapus semua cache?';
   static const String cacheCleared = 'Cache dibersihkan';
   static const String calculating = 'Menghitung...';
+
+  // Network & Bot Protection
+  static const String serverBusy = 'Server sedang sibuk. Harap tunggu beberapa saat.';
+  static const String accessBlocked = 'Akses dibatasi server (403). Harap coba beberapa saat lagi atau aktifkan mode pesawat.';
+  static const String connectionFailed = 'Gagal menghubungi server. Periksa koneksi Anda.';
 }

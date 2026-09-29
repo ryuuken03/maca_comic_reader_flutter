@@ -11,6 +11,13 @@ class LibraryProvider with ChangeNotifier {
   List<ComicModel> _history = [];
   List<ComicModel> get history => _history;
 
+  LibraryProvider({bool autoFetch = true}) {
+    if (autoFetch) {
+      fetchBookmarks();
+      fetchHistory();
+    }
+  }
+
   Future<void> fetchBookmarks() async {
     _bookmarks = await _repository.getBookmarks();
     notifyListeners();
@@ -37,9 +44,28 @@ class LibraryProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  bool isComicBookmarked(String link) {
+    return _bookmarks.any((b) => b.link == link);
+  }
+
+  ComicModel? getBookmark(String link) {
+    return _bookmarks.cast<ComicModel?>().firstWhere(
+      (b) => b?.link == link,
+      orElse: () => null,
+    );
+  }
+
+  bool isChapterBookmarked(String comicLink, String chapterUrl) {
+    final b = getBookmark(comicLink);
+    if (b == null || b.chapterLink == null) return false;
+    if (b.chapterLink == chapterUrl) return true;
+    final bSlug = b.chapterLink!.split('/').lastWhere((e) => e.isNotEmpty, orElse: () => '');
+    final cSlug = chapterUrl.split('/').lastWhere((e) => e.isNotEmpty, orElse: () => '');
+    return bSlug.isNotEmpty && bSlug == cSlug;
+  }
+
   Future<void> toggleBookmark(ComicModel comic) async {
-    final isBookmarked = await _repository.isBookmarked(comic.link);
-    if (isBookmarked) {
+    if (isComicBookmarked(comic.link)) {
       await _repository.removeBookmark(comic.link);
     } else {
       await _repository.saveBookmark(comic);
@@ -59,18 +85,19 @@ class LibraryProvider with ChangeNotifier {
   }
 
   Future<void> toggleChapterBookmark(ComicModel comic) async {
-    // Specialized logic from previous toggleBookmarkReader
-    bool isBookmarked = await _repository.isBookmarked(comic.link);
-    bool isBookmarkedReader = await _repository.isBookmarkedReader(comic.link, comic.latestChapter!);
-    if (isBookmarked) {
+    if (isComicBookmarked(comic.link)) {
       await _repository.removeBookmark(comic.link);
-      if(!isBookmarkedReader){
-        await _repository.saveBookmark(comic);
-      }
     } else {
       await _repository.saveBookmark(comic);
     }
     await fetchBookmarks();
+  }
+
+  Future<void> updateBookmarkProgress(String link, String chapterTitle, String chapterLink) async {
+    if (isComicBookmarked(link)) {
+      await _repository.updateBookmarkProgress(link, chapterTitle, chapterLink);
+      await fetchBookmarks();
+    }
   }
 
   Future<bool> isBookmarked(String link) => _repository.isBookmarked(link);

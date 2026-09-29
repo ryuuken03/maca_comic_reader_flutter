@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../../core/constants/app_strings.dart';
+import '../../providers/library_provider.dart';
 import '../collection/collection_page.dart';
 import '../history_page.dart';
 import '../settings_page.dart';
@@ -26,7 +28,12 @@ class _HomePageState extends State<HomePage> {
     setState(() {
       _selectedIndex = index;
     });
+    if (index == 1) {
+      context.read<LibraryProvider>().fetchHistory();
+    }
   }
+
+
 
   @override
   Widget build(BuildContext context) {

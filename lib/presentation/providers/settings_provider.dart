@@ -109,6 +109,7 @@ class SettingsProvider extends ChangeNotifier {
       PaintingBinding.instance.imageCache.clear();
       PaintingBinding.instance.imageCache.clearLiveImages();
       ApiCacheManager.instance.clear();
+      await DatabaseHelper.instance.clearAllHttpCache();
       await StorageHelper.clearThumbnailCacheOnDisk();
       await StorageHelper.clearReaderCacheOnDisk();
     } catch (_) {}

@@ -8,6 +8,7 @@ class ComicModel {
   final String status;
   final String format;
   final String updatedAt;
+  final String createdAt;
   final bool isPinned;
   final bool isHot;
   final bool isRecommended;
@@ -22,6 +23,7 @@ class ComicModel {
     this.status = '',
     this.format = '',
     this.updatedAt = '',
+    this.createdAt = '',
     this.isPinned = false,
     this.isHot = false,
     this.isRecommended = false,
@@ -37,7 +39,7 @@ class ComicModel {
       'type': type,
       'status': status,
       'format': format,
-      'updatedAt': updatedAt,
+      'updatedAt': updatedAt.isNotEmpty ? updatedAt : createdAt,
       'isPinned': isPinned ? 1 : 0,
       'isHot': isHot ? 1 : 0,
       'isRecommended': isRecommended ? 1 : 0,
@@ -45,6 +47,8 @@ class ComicModel {
   }
 
   factory ComicModel.fromMap(Map<String, dynamic> map) {
+    final rawUpdatedAt = map['updatedAt']?.toString() ?? map['updated_at']?.toString() ?? '';
+    final rawCreatedAt = map['createdAt']?.toString() ?? map['created_at']?.toString() ?? '';
     return ComicModel(
       title: map['title'],
       thumbUrl: map['thumbUrl'],
@@ -54,7 +58,8 @@ class ComicModel {
       type: map['type']?.toString() ?? '',
       status: map['status']?.toString() ?? '',
       format: map['format']?.toString() ?? '',
-      updatedAt: map['updatedAt']?.toString() ?? '',
+      updatedAt: rawUpdatedAt,
+      createdAt: rawCreatedAt,
       isPinned: map['isPinned'] == true ||
           map['isPinned'] == 1 ||
           map['isPinned'] == 'true' ||
@@ -68,6 +73,12 @@ class ComicModel {
           map['isRecommended'] == 'true' ||
           map['isRecommended'] == '1',
     );
+  }
+
+  String get displayTime {
+    if (updatedAt.isNotEmpty) return updatedAt;
+    if (createdAt.isNotEmpty) return createdAt;
+    return '';
   }
 
   void operator []=(String other, String value) {}

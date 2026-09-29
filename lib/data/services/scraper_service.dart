@@ -1,7 +1,10 @@
 import 'dart:convert';
 import 'dart:math';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import '../../core/constants/app_strings.dart';
 import '../../core/constants/constants.dart';
+import '../../core/database/database_helper.dart';
 import '../../core/utils/api_cache_manager.dart';
 import '../models/comic_model.dart';
 import '../models/chapter_model.dart';
@@ -12,12 +15,13 @@ import '../../util/util.dart';
 class ScraperService {
   final http.Client _client = http.Client();
 
-  Map<String, String> get _headers => {
+  /// Base headers lengkap sesuai standar browser untuk menghindari bot-flagging.
+  Map<String, String> get _baseHeaders => {
         'User-Agent': AppConstants.userAgent,
         'Accept': 'application/json, text/plain, */*',
         'Accept-Language': 'en-US,en;q=0.9,id;q=0.8',
-        'referer': '${AppConstants.baseUrl}/',
-        'origin': AppConstants.baseUrl,
+        'Referer': '${AppConstants.baseUrl}/',
+        'Origin': AppConstants.baseUrl,
         'sec-ch-ua': '"Chromium";v="124", "Android";v="13", "Not-A.Brand";v="99"',
         'sec-ch-ua-mobile': '?1',
         'sec-ch-ua-platform': '"Android"',
@@ -26,7 +30,78 @@ class ScraperService {
         'sec-fetch-site': 'cross-site',
       };
 
-  Future<void> _jitterDelay([int minMs = 120, int maxMs = 280]) async {
+  /// Melakukan request GET dengan:
+  /// 1. Pengecekan persistent SQLite cache (L2 cache) dengan TTL.
+  /// 2. Exponential backoff retry pada status 429 (Too Many Requests) & 503 (Server Unavailable).
+  /// 3. Error handling elegan untuk status 403 (Cloudflare Block) dengan instruksi user.
+  Future<http.Response> _getWithRetry(
+    Uri uri, {
+    Duration? cacheTtl,
+    bool forceRefresh = false,
+  }) async {
+    final cacheKey = uri.toString();
+
+    // 1. Cek cache persisten lokal di SQLite jika bukan force refresh
+    if (!forceRefresh && cacheTtl != null) {
+      final cachedBody = await DatabaseHelper.instance.getHttpCache(cacheKey);
+      if (cachedBody != null && cachedBody.isNotEmpty) {
+        return http.Response(cachedBody, 200);
+      }
+    }
+
+    // 2. Exponential backoff retry loop
+    int attempts = 0;
+    const maxAttempts = 3;
+    int backoffMs = 1500;
+
+    while (attempts < maxAttempts) {
+      attempts++;
+      try {
+        final response = await _client.get(uri, headers: _baseHeaders);
+
+        if (response.statusCode == 200) {
+          if (cacheTtl != null) {
+            DatabaseHelper.instance
+                .setHttpCache(cacheKey, response.body, cacheTtl)
+                .ignore();
+          }
+          return response;
+        }
+
+        if (response.statusCode == 429 || response.statusCode == 503) {
+          if (attempts < maxAttempts) {
+            debugPrint(
+                '[ScraperService] HTTP ${response.statusCode} terdeteksi. Mencoba lagi dalam ${backoffMs}ms (Percobaan $attempts/$maxAttempts)...');
+            await Future.delayed(Duration(milliseconds: backoffMs));
+            backoffMs *= 2; // 1.5s -> 3.0s
+            continue;
+          }
+          throw Exception(AppStrings.serverBusy);
+        }
+
+        if (response.statusCode == 403) {
+          throw Exception(AppStrings.accessBlocked);
+        }
+
+        return response;
+      } catch (e) {
+        if (e is Exception &&
+            (e.toString().contains(AppStrings.serverBusy) ||
+                e.toString().contains(AppStrings.accessBlocked))) {
+          rethrow;
+        }
+        if (attempts >= maxAttempts) {
+          throw Exception(AppStrings.connectionFailed);
+        }
+        await Future.delayed(Duration(milliseconds: backoffMs));
+        backoffMs *= 2;
+      }
+    }
+
+    throw Exception(AppStrings.connectionFailed);
+  }
+
+  Future<void> _jitterDelay([int minMs = 150, int maxMs = 300]) async {
     final rand = Random();
     final delay = minMs + rand.nextInt(maxMs - minMs + 1);
     await Future.delayed(Duration(milliseconds: delay));
@@ -50,18 +125,18 @@ class ScraperService {
     final apiUrl = '${AppConstants.apiBaseUrl}/series/$slug';
     final chaptersApiUrl = '${AppConstants.apiBaseUrl}/series/$slug/chapters';
 
-    final responses = await Future.wait([
-      _client.get(Uri.parse(apiUrl), headers: _headers),
-      _client.get(Uri.parse(chaptersApiUrl), headers: _headers),
-    ]);
-
-    final detailRes = responses[0];
-    final chapterRes = responses[1];
-
-    if (detailRes.statusCode == 429 || chapterRes.statusCode == 429) {
-      throw Exception('Server sedang sibuk (Too Many Requests). Harap tunggu beberapa saat.');
-    }
-
+    // Ambil detail dan chapters secara sekuensial dengan jitter delay untuk mencegah burst request
+    final detailRes = await _getWithRetry(
+      Uri.parse(apiUrl),
+      cacheTtl: const Duration(minutes: 20),
+      forceRefresh: forceRefresh,
+    );
+    await _jitterDelay(150, 280);
+    final chapterRes = await _getWithRetry(
+      Uri.parse(chaptersApiUrl),
+      cacheTtl: const Duration(minutes: 20),
+      forceRefresh: forceRefresh,
+    );
     if (detailRes.statusCode != 200) {
       throw Exception('Gagal memuat API Detail Backend (Status: ${detailRes.statusCode}).');
     }
@@ -98,6 +173,16 @@ class ScraperService {
           (rootData['dataMetadata'] != null && rootData['dataMetadata']['isRecommended'] == true) ||
           (innerData['dataMetadata'] != null && innerData['dataMetadata']['isRecommended'] == true);
 
+      String? comicUpdatedAt = innerData['updatedAt']?.toString() ??
+          innerData['updated_at']?.toString() ??
+          rootData['updatedAt']?.toString() ??
+          rootData['updated_at']?.toString();
+
+      String? comicCreatedAt = innerData['createdAt']?.toString() ??
+          innerData['created_at']?.toString() ??
+          rootData['createdAt']?.toString() ??
+          rootData['created_at']?.toString();
+
       ComicModel comic = ComicModel(
         title: title,
         thumbUrl: thumbUrl,
@@ -105,6 +190,8 @@ class ScraperService {
         isPinned: isPinned,
         isHot: isHot,
         isRecommended: isRecommended,
+        updatedAt: comicUpdatedAt != null && comicUpdatedAt.isNotEmpty ? timeAgo(comicUpdatedAt) : '',
+        createdAt: comicCreatedAt != null && comicCreatedAt.isNotEmpty ? timeAgo(comicCreatedAt) : '',
       );
 
       List<ChapterModel> chaptersData = [];
@@ -116,17 +203,33 @@ class ScraperService {
           var chapInfo = chapterRaw['data'] ?? chapterRaw;
           
           String chapIndexStr = chapterRaw['chapterIndex']?.toString() ?? chapInfo['index']?.toString() ?? '';
-          String chapTitle = 'Chapter $chapIndexStr';
+          String chapTitle = chapterRaw['title']?.toString() ?? chapInfo['title']?.toString() ?? '';
+          if (chapTitle.trim().isEmpty) {
+            chapTitle = 'Chapter $chapIndexStr';
+          }
 
           String chapLink = '${AppConstants.apiBaseUrl}/series/$slug/chapters/$chapIndexStr';
 
-          String? rawDate = chapterRaw['createdAt'] ?? chapInfo['date']?.toString();
+          String? updatedAt = chapterRaw['updatedAt']?.toString() ??
+              chapterRaw['updated_at']?.toString() ??
+              chapInfo['updatedAt']?.toString() ??
+              chapInfo['updated_at']?.toString();
+
+          String? createdAt = chapterRaw['createdAt']?.toString() ??
+              chapterRaw['created_at']?.toString() ??
+              chapInfo['createdAt']?.toString() ??
+              chapInfo['created_at']?.toString() ??
+              chapInfo['date']?.toString();
+
+          String? rawDate = (updatedAt != null && updatedAt.trim().isNotEmpty) ? updatedAt : createdAt;
 
           chaptersData.add(
             ChapterModel(
               title: chapTitle,
               link: chapLink,
-              releaseDate: timeAgo(rawDate),
+              releaseDate: rawDate != null && rawDate.isNotEmpty ? timeAgo(rawDate) : null,
+              updatedAt: updatedAt,
+              createdAt: createdAt,
             ),
           );
         }
@@ -149,16 +252,33 @@ class ScraperService {
       String type = innerData['type']?.toString() ?? '';
       String format = innerData['format']?.toString() ?? '';
 
+      String? latestChapterTitle;
+      String? latestChapterLink;
+      if (chaptersData.isNotEmpty) {
+        latestChapterTitle = chaptersData.first.title;
+        latestChapterLink = chaptersData.first.link;
+        if (comicUpdatedAt == null || comicUpdatedAt.isEmpty) {
+          comicUpdatedAt = chaptersData.first.updatedAt ?? chaptersData.first.createdAt ?? chaptersData.first.releaseDate;
+        }
+        if (comicCreatedAt == null || comicCreatedAt.isEmpty) {
+          comicCreatedAt = chaptersData.first.createdAt;
+        }
+      }
+
       final comicWithMeta = ComicModel(
         title: comic.title,
         thumbUrl: comic.thumbUrl,
         link: comic.link,
+        latestChapter: latestChapterTitle,
+        chapterLink: latestChapterLink,
         isPinned: isPinned,
         isHot: isHot,
         isRecommended: isRecommended,
         status: status,
         type: type,
         format: format,
+        updatedAt: comicUpdatedAt != null && comicUpdatedAt.isNotEmpty ? timeAgo(comicUpdatedAt) : '',
+        createdAt: comicCreatedAt != null && comicCreatedAt.isNotEmpty ? timeAgo(comicCreatedAt) : '',
       );
 
       final detailComic = DetailComicModel(
@@ -169,6 +289,8 @@ class ScraperService {
         status: status,
         type: type,
         format: format,
+        updatedAt: comicUpdatedAt != null && comicUpdatedAt.isNotEmpty ? timeAgo(comicUpdatedAt) : '',
+        createdAt: comicCreatedAt != null && comicCreatedAt.isNotEmpty ? timeAgo(comicCreatedAt) : '',
         isPinned: isPinned,
         isHot: isHot,
         isRecommended: isRecommended,
@@ -197,10 +319,13 @@ class ScraperService {
         final chapNum = segments[chapterIdx + 1];
         normalizedUrl = '${AppConstants.apiBaseUrl}/series/$slug/chapters/$chapNum';
       }
-    } else if (normalizedUrl.contains('v1.voratoon.com') || normalizedUrl.contains('v2.voratoon.com')) {
+    } else if (normalizedUrl.contains('v1.voratoon.com') ||
+        normalizedUrl.contains('v2.voratoon.com') ||
+        normalizedUrl.contains('v4.voratoon.com')) {
       normalizedUrl = normalizedUrl
           .replaceAll('https://v1.voratoon.com', AppConstants.apiBaseUrl)
-          .replaceAll('https://v2.voratoon.com', AppConstants.apiBaseUrl);
+          .replaceAll('https://v2.voratoon.com', AppConstants.apiBaseUrl)
+          .replaceAll('https://v4.voratoon.com', AppConstants.apiBaseUrl);
     }
 
     if (!normalizedUrl.startsWith('${AppConstants.apiBaseUrl}/')) {
@@ -213,12 +338,12 @@ class ScraperService {
       if (cached != null) return cached;
     }
 
-    final response = await _client.get(Uri.parse(normalizedUrl), headers: _headers);
+    final response = await _getWithRetry(
+      Uri.parse(normalizedUrl),
+      cacheTtl: const Duration(minutes: 30),
+      forceRefresh: forceRefresh,
+    );
     
-    if (response.statusCode == 429) {
-      throw Exception('Server sedang sibuk (Too Many Requests). Harap tunggu beberapa saat.');
-    }
-
     if (response.statusCode != 200) {
       throw Exception('Gagal memuat chapter info (Status: ${response.statusCode})');
     }
@@ -297,7 +422,12 @@ class ScraperService {
     await _jitterDelay();
 
     try {
-      final response = await _client.get(uri, headers: _headers);
+      final response = await _getWithRetry(
+        uri,
+        cacheTtl: (page == 1 && (searchQuery == null || searchQuery.isEmpty))
+            ? const Duration(minutes: 5)
+            : null,
+      );
 
       if (response.statusCode == 200) {
         final jsonResponse = json.decode(response.body);
@@ -331,6 +461,7 @@ class ScraperService {
           String? latestChapter;
           String? chapterLink;
           String? updatedAt;
+          String? createdAt;
           
           final chapters = item['chapters'] ?? innerData['chapters'];
           if (chapters != null && chapters is List && chapters.isNotEmpty) {
@@ -340,7 +471,15 @@ class ScraperService {
               
               final chapTitle = chapData['title'] ?? firstChapter['title'];
               final chapIndex = firstChapter['chapterIndex'] ?? chapData['number'] ?? firstChapter['number'];
-              updatedAt = firstChapter['updatedAt'] ?? chapData['updatedAt'];
+              updatedAt = firstChapter['updatedAt']?.toString() ??
+                  firstChapter['updated_at']?.toString() ??
+                  chapData['updatedAt']?.toString() ??
+                  chapData['updated_at']?.toString();
+              createdAt = firstChapter['createdAt']?.toString() ??
+                  firstChapter['created_at']?.toString() ??
+                  chapData['createdAt']?.toString() ??
+                  chapData['created_at']?.toString() ??
+                  chapData['date']?.toString();
               
               if (chapTitle != null &&
                   chapTitle.toString().trim().isNotEmpty &&
@@ -374,7 +513,18 @@ class ScraperService {
             }
           }
 
-          updatedAt ??= innerData['updatedAt'] ?? item['updatedAt'];
+          updatedAt ??= innerData['updatedAt']?.toString() ??
+              innerData['updated_at']?.toString() ??
+              item['updatedAt']?.toString() ??
+              item['updated_at']?.toString();
+          createdAt ??= innerData['createdAt']?.toString() ??
+              innerData['created_at']?.toString() ??
+              item['createdAt']?.toString() ??
+              item['created_at']?.toString();
+
+          final resolvedTime = (updatedAt != null && updatedAt.trim().isNotEmpty)
+              ? updatedAt
+              : createdAt;
 
           if (linkDetail.isNotEmpty && !linkDetail.startsWith('http')) {
             linkDetail = '${AppConstants.baseUrl}$linkDetail';
@@ -413,7 +563,8 @@ class ScraperService {
             type: type,
             status: status,
             format: format,
-            updatedAt: updatedAt!= null?timeAgo(updatedAt):'',
+            updatedAt: resolvedTime != null && resolvedTime.isNotEmpty ? timeAgo(resolvedTime) : '',
+            createdAt: createdAt != null && createdAt.isNotEmpty ? timeAgo(createdAt) : '',
             isPinned: isPinned,
             isHot: isHot,
             isRecommended: isRecommended,
@@ -424,16 +575,17 @@ class ScraperService {
           ApiCacheManager.instance.set<List<ComicModel>>(cacheKey, comics, ttl: const Duration(minutes: 3));
         }
 
+        debugPrint('fetchSeries SUCCESS: loaded ${comics.length} items (preset: $preset, type: $type)');
         return comics;
       } else if (response.statusCode == 429) {
         throw Exception('Server sedang sibuk (Too Many Requests). Harap tunggu beberapa saat.');
       } else {
-        print('FetchSeries Error Status: ${response.statusCode}');
-        print('FetchSeries Error Body: ${response.body}');
+        debugPrint('FetchSeries Error Status: ${response.statusCode}');
+        debugPrint('FetchSeries Error Body: ${response.body}');
         throw Exception('Gagal memuat data1');
       }
     } catch (e) {
-      print("Error: $e");
+      debugPrint("Error fetchSeries: $e");
       return [];
     }
   }
@@ -447,7 +599,11 @@ class ScraperService {
 
     Uri uri = Uri.parse('${AppConstants.apiBaseUrl}/genres');
     try {
-      final response = await _client.get(uri, headers: _headers);
+      final response = await _getWithRetry(
+        uri,
+        cacheTtl: const Duration(hours: 24),
+        forceRefresh: forceRefresh,
+      );
 
       if (response.statusCode == 200) {
         final jsonResponse = json.decode(response.body);
@@ -477,7 +633,7 @@ class ScraperService {
         throw Exception('Gagal memuat genre');
       }
     } catch (e) {
-      print("Error getGenres: $e");
+      debugPrint("Error getGenres: $e");
       return [];
     }
   }

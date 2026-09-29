@@ -70,15 +70,16 @@ class ComicRepository {
     return _scraperService.getReaderDataBE(chapterUrl, forceRefresh: forceRefresh);
   }
 
-  // DATABASE / LIBRARY
   Future<List<ComicModel>> getBookmarks() => _databaseHelper.getBookmarks();
-  Future<List<ComicModel>> getHistory() => _databaseHelper.getHistory();
+  Future<List<ComicModel>> getHistory({int limit = 100}) => _databaseHelper.getHistory(limit: limit);
   
   Future<void> saveHistory(ComicModel comic) => _databaseHelper.saveHistory(comic);
   Future<void> removeHistory(String link) => _databaseHelper.removeHistory(link);
   Future<void> clearHistory() => _databaseHelper.clearHistory();
 
   Future<void> saveBookmark(ComicModel comic) => _databaseHelper.saveBookmark(comic);
+  Future<void> updateBookmarkProgress(String link, String chapterTitle, String chapterLink) =>
+      _databaseHelper.updateBookmarkProgress(link, chapterTitle, chapterLink);
   Future<void> removeBookmark(String link) => _databaseHelper.removeBookmark(link);
   Future<void> clearBookmarks() => _databaseHelper.clearBookmarks();
 

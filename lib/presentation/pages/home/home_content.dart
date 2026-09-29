@@ -21,10 +21,9 @@ class _HomeContentState extends State<HomeContent> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        final take = getAdaptiveGridTake(context);
-        context.read<HomeProvider>().fetchHomeData(take: take);
-      }
+      if (!mounted) return;
+      final take = getAdaptiveGridTake(context);
+      context.read<HomeProvider>().fetchHomeData(take: take);
     });
   }
 
@@ -93,6 +92,7 @@ class _HomeContentState extends State<HomeContent> {
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 12),
         itemCount: comics.length,
+        // ignore: deprecated_member_use
         cacheExtent: 300,
         itemBuilder: (context, index) {
           final comic = comics[index];
@@ -192,6 +192,7 @@ class _HomeContentState extends State<HomeContent> {
             },
             child: CustomScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
+              // ignore: deprecated_member_use
               cacheExtent: 500,
               slivers: [
                 SliverToBoxAdapter(

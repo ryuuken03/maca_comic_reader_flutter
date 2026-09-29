@@ -149,7 +149,19 @@ class DownloadService {
 
           final imgUrl = images[currentIndex];
           final pageNum = currentIndex + 1;
-          final fileName = '${pageNum.toString().padLeft(3, '0')}.jpg';
+          
+          // Deteksi ekstensi gambar dari URL asli (.webp, .png, .jpeg, .jpg)
+          String ext = 'jpg';
+          final uriPath = Uri.tryParse(imgUrl)?.path.toLowerCase() ?? '';
+          if (uriPath.endsWith('.webp')) {
+            ext = 'webp';
+          } else if (uriPath.endsWith('.png')) {
+            ext = 'png';
+          } else if (uriPath.endsWith('.jpeg')) {
+            ext = 'jpeg';
+          }
+
+          final fileName = '${pageNum.toString().padLeft(3, '0')}.$ext';
           final localFile = File('${targetDir.path}/$fileName');
 
           // Jeda jitter manusiawi (150ms - 300ms) untuk mencegah proteksi Cloudflare/WAF
@@ -201,7 +213,13 @@ class DownloadService {
         throw Exception('Unduhan dibatalkan');
       }
 
-      // 4. Simpan metadata ke SQLite
+      // 4. Simpan metadata ke SQLite (simpan relative path agar aman dari perubahan UUID sandbox OS)
+      final cleanComicId = _sanitizeFileName(task.comicId.isEmpty ? 'unknown_comic' : task.comicId);
+      final cleanChapterSlug = _sanitizeFileName(
+        task.chapterUrl.split('/').lastWhere((e) => e.isNotEmpty, orElse: () => 'chapter'),
+      );
+      final relativePath = '$cleanComicId/$cleanChapterSlug';
+
       final downloadedChapter = DownloadedChapterModel(
         id: '${task.comicId}_${task.chapterUrl.split('/').lastWhere((e) => e.isNotEmpty, orElse: () => 'chap')}',
         comicId: task.comicId,
@@ -209,7 +227,7 @@ class DownloadService {
         comicThumbUrl: task.comicThumbUrl,
         chapterTitle: task.chapterTitle,
         chapterUrl: task.chapterUrl,
-        localPath: targetDir.path,
+        localPath: relativePath,
         pageCount: completedCount,
         sizeBytes: totalSize,
         downloadedAt: DateTime.now().millisecondsSinceEpoch,
@@ -226,6 +244,16 @@ class DownloadService {
       ));
     } catch (e) {
       debugPrint('[DownloadService] ❌ Gagal unduh chapter: $e');
+      // Bersihkan file parsial yang belum selesai diunduh agar tidak menjadi file sampah di storage
+      try {
+        final targetDir = await getChapterDirectory(task.comicId, chapterUrl);
+        if (await targetDir.exists()) {
+          await targetDir.delete(recursive: true);
+        }
+      } catch (delErr) {
+        debugPrint('[DownloadService] Warning pembersihan direktori parsial: $delErr');
+      }
+
       _progressController.add(DownloadProgress(
         chapterUrl: chapterUrl,
         progress: 0.0,
@@ -243,10 +271,59 @@ class DownloadService {
     }
   }
 
+  /// Memetakan path yang disimpan di DB (baik relative maupun absolute lama) ke path absolut terkini di storage
+  Future<String> resolveLocalChapterPath(
+    String storedPath, {
+    String? comicId,
+    String? chapterUrl,
+  }) async {
+    final downloadsDir = await getDownloadsDirectory();
+
+    final isRelative = storedPath.isNotEmpty &&
+        !storedPath.startsWith('/') &&
+        !storedPath.startsWith('\\') &&
+        !storedPath.contains(':\\') &&
+        !storedPath.contains(':/');
+
+    if (isRelative) {
+      return '${downloadsDir.path}/$storedPath';
+    }
+
+    if (storedPath.isNotEmpty) {
+      final dir = Directory(storedPath);
+      if (await dir.exists()) {
+        return storedPath;
+      }
+    }
+
+    if (comicId != null && chapterUrl != null) {
+      final fallbackDir = await getChapterDirectory(comicId, chapterUrl);
+      if (await fallbackDir.exists()) {
+        return fallbackDir.path;
+      }
+    }
+
+    final normalized = storedPath.replaceAll('\\', '/');
+    if (normalized.contains('/downloads/')) {
+      final relative = normalized.split('/downloads/').last;
+      final resolved = Directory('${downloadsDir.path}/$relative');
+      if (await resolved.exists()) {
+        return resolved.path;
+      }
+    }
+
+    return storedPath;
+  }
+
   Future<void> deleteDownloadedChapter(String chapterUrl) async {
     final chapter = await _databaseHelper.getDownloadedChapterByUrl(chapterUrl);
     if (chapter != null) {
-      final dir = Directory(chapter.localPath);
+      final resolvedPath = await resolveLocalChapterPath(
+        chapter.localPath,
+        comicId: chapter.comicId,
+        chapterUrl: chapter.chapterUrl,
+      );
+      final dir = Directory(resolvedPath);
       if (await dir.exists()) {
         try {
           await dir.delete(recursive: true);
@@ -261,7 +338,12 @@ class DownloadService {
   Future<void> deleteDownloadedChaptersByComic(String comicId) async {
     final chapters = await _databaseHelper.getDownloadedChaptersByComic(comicId);
     for (var c in chapters) {
-      final dir = Directory(c.localPath);
+      final resolvedPath = await resolveLocalChapterPath(
+        c.localPath,
+        comicId: c.comicId,
+        chapterUrl: c.chapterUrl,
+      );
+      final dir = Directory(resolvedPath);
       if (await dir.exists()) {
         try {
           await dir.delete(recursive: true);
@@ -302,14 +384,29 @@ class DownloadService {
     return totalBytes;
   }
 
-  Future<List<String>> getLocalChapterImagePaths(String localPath) async {
-    final dir = Directory(localPath);
+  Future<List<String>> getLocalChapterImagePaths(
+    String localPath, {
+    String? comicId,
+    String? chapterUrl,
+  }) async {
+    final resolvedPath = await resolveLocalChapterPath(
+      localPath,
+      comicId: comicId,
+      chapterUrl: chapterUrl,
+    );
+    final dir = Directory(resolvedPath);
     if (!await dir.exists()) return [];
 
     final files = dir
         .listSync()
         .whereType<File>()
-        .where((f) => f.path.endsWith('.jpg') || f.path.endsWith('.webp') || f.path.endsWith('.png'))
+        .where((f) {
+          final p = f.path.toLowerCase();
+          return p.endsWith('.jpg') ||
+              p.endsWith('.jpeg') ||
+              p.endsWith('.webp') ||
+              p.endsWith('.png');
+        })
         .toList();
 
     files.sort((a, b) => a.path.compareTo(b.path));

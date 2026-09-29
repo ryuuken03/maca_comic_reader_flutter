@@ -5,6 +5,7 @@ import '../../../data/models/comic_model.dart';
 import '../../../data/models/detail_comic_model.dart';
 import '../../../data/models/chapter_model.dart';
 import '../../../core/constants/constants.dart';
+import '../../../util/util.dart';
 import '../../providers/detail_provider.dart';
 import '../../providers/library_provider.dart';
 import '../../providers/download_provider.dart';
@@ -72,33 +73,37 @@ class _DetailPageState extends State<DetailPage> {
             builder: (context, detailProvider, libraryProvider, child) {
               if (detailProvider.detailComic == null) return const SizedBox.shrink();
 
-              return FutureBuilder<bool>(
-                future: libraryProvider.isBookmarked(widget.comicUrl),
-                builder: (context, snapshot) {
-                  bool isBookmarked = snapshot.data ?? false;
-                  return IconButton(
-                    icon: Icon(
-                      isBookmarked ? Icons.bookmark : Icons.bookmark_border,
-                      color: isBookmarked ? const Color(0xFFFDD644) : null,
-                    ),
-                    onPressed: () {
-                      final detail = detailProvider.detailComic!;
-                      final bookmarkModel = ComicModel(
-                        title: detail.comic.title,
-                        thumbUrl: detail.comic.thumbUrl,
-                        link: detail.comic.link,
-                        latestChapter: null,
-                        chapterLink: null,
-                        type: detail.type,
-                        status: detail.status,
-                        format: detail.format,
-                        isPinned: detail.isPinned,
-                        isHot: detail.isHot,
-                        isRecommended: detail.isRecommended,
-                      );
-                      libraryProvider.toggleBookmark(bookmarkModel);
-                    },
+              final isBookmarked = libraryProvider.isComicBookmarked(widget.comicUrl);
+              return IconButton(
+                icon: Icon(
+                  isBookmarked ? Icons.bookmark : Icons.bookmark_border,
+                  color: isBookmarked ? const Color(0xFFFDD644) : null,
+                ),
+                onPressed: () {
+                  final detail = detailProvider.detailComic!;
+                  final existingBookmark = libraryProvider.getBookmark(widget.comicUrl);
+                  final bookmarkModel = ComicModel(
+                    title: detail.comic.title,
+                    thumbUrl: detail.comic.thumbUrl,
+                    link: detail.comic.link,
+                    latestChapter: existingBookmark?.latestChapter ??
+                        detail.comic.latestChapter ??
+                        (detail.chapters.isNotEmpty ? detail.chapters.first.title : null),
+                    chapterLink: existingBookmark?.chapterLink ??
+                        detail.comic.chapterLink ??
+                        (detail.chapters.isNotEmpty ? detail.chapters.first.link : null),
+                    type: detail.type,
+                    status: detail.status,
+                    format: detail.format,
+                    updatedAt: existingBookmark?.updatedAt.isNotEmpty == true
+                        ? existingBookmark!.updatedAt
+                        : (detail.comic.updatedAt.isNotEmpty ? detail.comic.updatedAt : detail.displayDate),
+                    createdAt: detail.createdAt.isNotEmpty ? detail.createdAt : detail.comic.createdAt,
+                    isPinned: existingBookmark?.isPinned ?? detail.isPinned,
+                    isHot: existingBookmark?.isHot ?? detail.isHot,
+                    isRecommended: existingBookmark?.isRecommended ?? detail.isRecommended,
                   );
+                  libraryProvider.toggleBookmark(bookmarkModel);
                 },
               );
             },
@@ -168,20 +173,34 @@ class _DetailPageState extends State<DetailPage> {
             final isRecommended =
                 detail.isRecommended || detail.comic.isRecommended;
 
-            final historyItem = libraryProvider.history
-                .cast<ComicModel?>()
-                .firstWhere(
-                  (h) => h?.link == widget.comicUrl && h?.chapterLink != null,
-                  orElse: () => null,
-                );
+            bool matchLink(String? a, String? b) {
+              if (a == null || b == null) return false;
+              if (a == b) return true;
+              final cleanA = a.split('?').first.replaceAll(RegExp(r'/+$'), '');
+              final cleanB = b.split('?').first.replaceAll(RegExp(r'/+$'), '');
+              if (cleanA == cleanB) return true;
+              final slugA = cleanA.split('/').lastWhere((e) => e.isNotEmpty, orElse: () => '');
+              final slugB = cleanB.split('/').lastWhere((e) => e.isNotEmpty, orElse: () => '');
+              return slugA.isNotEmpty && slugA == slugB;
+            }
 
             final bookmarkedItem = libraryProvider.bookmarks
                 .cast<ComicModel?>()
                 .firstWhere(
                   (b) =>
-                      b?.link == widget.comicUrl &&
-                      b?.latestChapter != null &&
-                      b?.chapterLink != null,
+                      matchLink(b?.link, widget.comicUrl) &&
+                      b?.chapterLink != null &&
+                      b!.chapterLink!.isNotEmpty,
+                  orElse: () => null,
+                );
+
+            final historyItem = libraryProvider.history
+                .cast<ComicModel?>()
+                .firstWhere(
+                  (h) =>
+                      matchLink(h?.link, widget.comicUrl) &&
+                      h?.chapterLink != null &&
+                      h!.chapterLink!.isNotEmpty,
                   orElse: () => null,
                 );
 
@@ -189,22 +208,53 @@ class _DetailPageState extends State<DetailPage> {
             String ctaLabel;
             bool isContinue = false;
 
-            if (historyItem != null && historyItem.chapterLink != null) {
-              final rawCh = historyItem.latestChapter ?? '';
-              final lastReadTitle = rawCh.toLowerCase().contains('chapter')
-                  ? rawCh
-                  : 'Chapter $rawCh';
-              targetChapterUrl = historyItem.chapterLink;
-              ctaLabel = '${AppStrings.readContinue} ($lastReadTitle)';
-              isContinue = true;
-            } else if (bookmarkedItem != null &&
-                bookmarkedItem.chapterLink != null) {
-              final rawCh = bookmarkedItem.latestChapter ?? '';
-              final lastReadTitle = rawCh.toLowerCase().contains('chapter')
-                  ? rawCh
-                  : 'Chapter $rawCh';
+            String formatCleanTitle(String raw) {
+              if (raw.trim().isEmpty) return '';
+              final lower = raw.toLowerCase().trim();
+              if (lower.startsWith('chapter') || lower.startsWith('ch')) {
+                return raw.trim();
+              }
+              return 'Chapter ${raw.trim()}';
+            }
+
+            // Prioritaskan chapter dari Bookmark dulu, jika tidak ada baru dari History
+            if (bookmarkedItem != null &&
+                bookmarkedItem.chapterLink != null &&
+                bookmarkedItem.chapterLink!.isNotEmpty) {
+              var rawCh = bookmarkedItem.latestChapter ?? '';
+              if (rawCh.isEmpty) {
+                final matchedChapter = detail.chapters.cast<ChapterModel?>().firstWhere(
+                  (c) => matchLink(c?.link, bookmarkedItem.chapterLink),
+                  orElse: () => null,
+                );
+                if (matchedChapter != null) {
+                  rawCh = matchedChapter.title;
+                }
+              }
+              final bookmarkTitle = formatCleanTitle(rawCh);
               targetChapterUrl = bookmarkedItem.chapterLink;
-              ctaLabel = '${AppStrings.readContinue} ($lastReadTitle)';
+              ctaLabel = bookmarkTitle.isNotEmpty
+                  ? '${AppStrings.readContinue} ($bookmarkTitle)'
+                  : AppStrings.readContinue;
+              isContinue = true;
+            } else if (historyItem != null &&
+                historyItem.chapterLink != null &&
+                historyItem.chapterLink!.isNotEmpty) {
+              var rawCh = historyItem.latestChapter ?? '';
+              if (rawCh.isEmpty) {
+                final matchedChapter = detail.chapters.cast<ChapterModel?>().firstWhere(
+                  (c) => matchLink(c?.link, historyItem.chapterLink),
+                  orElse: () => null,
+                );
+                if (matchedChapter != null) {
+                  rawCh = matchedChapter.title;
+                }
+              }
+              final lastReadTitle = formatCleanTitle(rawCh);
+              targetChapterUrl = historyItem.chapterLink;
+              ctaLabel = lastReadTitle.isNotEmpty
+                  ? '${AppStrings.readContinue} ($lastReadTitle)'
+                  : AppStrings.readContinue;
               isContinue = true;
             } else if (detail.chapters.isNotEmpty) {
               final firstChap = detail.chapters.last;
@@ -300,6 +350,45 @@ class _DetailPageState extends State<DetailPage> {
     );
   }
 
+  String _formatChapterSubtitle(DetailComicModel detail) {
+    String formattedChapter = '';
+    String? chapter = detail.comic.latestChapter;
+    if (chapter == null || chapter.trim().isEmpty) {
+      if (detail.chapters.isNotEmpty) {
+        chapter = detail.chapters.first.title;
+      }
+    }
+    if (chapter != null && chapter.trim().isNotEmpty) {
+      final trimmed = chapter.trim();
+      final lower = trimmed.toLowerCase();
+      if (lower.startsWith('ch') || lower.contains('chapter') || lower.contains('oneshot')) {
+        formattedChapter = trimmed;
+      } else {
+        formattedChapter = 'Ch. $trimmed';
+      }
+    }
+
+    String formattedTime = '';
+    final dateStr = detail.displayDate;
+    if (dateStr.isNotEmpty) {
+      final trimmed = dateStr.trim();
+      if (trimmed.contains('lalu') || trimmed == 'Baru saja') {
+        formattedTime = trimmed;
+      } else {
+        formattedTime = timeAgo(trimmed);
+      }
+    }
+
+    if (formattedChapter.isNotEmpty && formattedTime.isNotEmpty) {
+      return '$formattedChapter • $formattedTime';
+    } else if (formattedChapter.isNotEmpty) {
+      return formattedChapter;
+    } else if (formattedTime.isNotEmpty) {
+      return formattedTime;
+    }
+    return '';
+  }
+
   Widget _buildTabletLayout(
     BuildContext context, {
     required DetailComicModel detail,
@@ -314,6 +403,7 @@ class _DetailPageState extends State<DetailPage> {
     required double screenWidth,
   }) {
     final leftColumnWidth = (screenWidth * 0.38).clamp(320.0, 420.0);
+    final chapterSubtitle = _formatChapterSubtitle(detail);
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -358,6 +448,20 @@ class _DetailPageState extends State<DetailPage> {
                       DetailBadge(detail.comic.typeLabel, Colors.orange),
                   ],
                 ),
+                if (chapterSubtitle.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    chapterSubtitle,
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Colors.white70,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 14),
                 DetailCtaButton(
                   targetChapterUrl: targetChapterUrl,
@@ -486,6 +590,7 @@ class _DetailPageState extends State<DetailPage> {
   }) {
     final coverWidth = screenWidth < 360 ? 100.0 : 120.0;
     final coverHeight = coverWidth * 1.33;
+    final chapterSubtitle = _formatChapterSubtitle(detail);
 
     return Scrollbar(
       controller: _scrollController,
@@ -537,8 +642,21 @@ class _DetailPageState extends State<DetailPage> {
                                   detail.comic.typeLabel, Colors.orange),
                           ],
                         ),
+                        if (chapterSubtitle.isNotEmpty) ...[
+                          const SizedBox(height: 6),
+                          Text(
+                            chapterSubtitle,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: Colors.white70,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
                         if (detail.genres.isNotEmpty) ...[
-                          const SizedBox(height: 10),
+                          const SizedBox(height: 8),
                           Wrap(
                             spacing: 4.0,
                             runSpacing: 4.0,

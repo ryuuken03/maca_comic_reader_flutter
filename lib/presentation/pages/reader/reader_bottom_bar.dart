@@ -81,6 +81,18 @@ class ReaderBottomBar extends StatelessWidget {
               prevChapterUrl = chapters[currentIndex + 1].link;
             }
           }
+        } else if (provider.isOffline && provider.offlineChapters.isNotEmpty) {
+          final offlineChaps = provider.offlineChapters;
+          final currentIndex =
+              offlineChaps.indexWhere((c) => c.chapterUrl == chapterUrl);
+          if (currentIndex != -1) {
+            if (currentIndex > 0) {
+              nextChapterUrl = offlineChaps[currentIndex - 1].chapterUrl;
+            }
+            if (currentIndex < offlineChaps.length - 1) {
+              prevChapterUrl = offlineChaps[currentIndex + 1].chapterUrl;
+            }
+          }
         }
 
         return BottomAppBar(
@@ -388,37 +400,48 @@ class ReaderAppBar extends StatelessWidget implements PreferredSizeWidget {
         // Bookmark
         Consumer2<ReaderProvider, LibraryProvider>(
           builder: (context, readerProvider, libraryProvider, child) {
-            final actIndexStr = chapterUrl
-                .split('/')
-                .lastWhere((e) => e.isNotEmpty, orElse: () => '');
-            if (readerProvider.readerComicLink.isEmpty ||
-                readerProvider.detailComic == null) {
+            final comicLink = readerProvider.readerComicLink;
+            if (comicLink.isEmpty) {
               return const SizedBox.shrink();
             }
-            return FutureBuilder<bool>(
-              future: libraryProvider.isBookmarkedReader(
-                  readerProvider.readerComicLink, actIndexStr),
-              builder: (context, snapshot) {
-                final isBookmarked = snapshot.data ?? false;
-                return IconButton(
-                  icon: Icon(
-                    isBookmarked ? Icons.bookmark : Icons.bookmark_border,
-                    color: isBookmarked ? _kAccent : Colors.white,
-                  ),
-                  onPressed: () {
-                    final detail = readerProvider.detailComic!;
-                    libraryProvider.toggleChapterBookmark(ComicModel(
-                      title: detail.comic.title,
-                      thumbUrl: detail.comic.thumbUrl,
-                      link: detail.comic.link,
-                      latestChapter: actIndexStr,
-                      chapterLink: chapterUrl,
-                      type: detail.type,
-                      status: detail.status,
-                      format: detail.format,
-                    ));
-                  },
-                );
+
+            final isBookmarked = libraryProvider.isComicBookmarked(comicLink);
+            return IconButton(
+              icon: Icon(
+                isBookmarked ? Icons.bookmark : Icons.bookmark_border,
+                color: isBookmarked ? _kAccent : Colors.white,
+              ),
+              onPressed: () {
+                if (isBookmarked) {
+                  libraryProvider.removeBookmark(comicLink);
+                } else {
+                  final detail = readerProvider.detailComic;
+                  String chapterTitle = readerProvider.readerChapterTitle;
+                  if (chapterTitle.isEmpty) {
+                    final matchingChapter = detail?.chapters
+                        .where((c) => c.link == chapterUrl)
+                        .firstOrNull;
+                    chapterTitle = matchingChapter?.title ??
+                        chapterUrl.split('/').lastWhere((e) => e.isNotEmpty, orElse: () => '');
+                  }
+
+                  final title = detail?.comic.title ?? readerProvider.readerComicTitle;
+                  final thumbUrl = detail?.comic.thumbUrl ?? readerProvider.readerComicThumb;
+
+                  libraryProvider.toggleChapterBookmark(ComicModel(
+                    title: title,
+                    thumbUrl: thumbUrl,
+                    link: comicLink,
+                    latestChapter: chapterTitle,
+                    chapterLink: chapterUrl,
+                    type: detail?.type ?? '',
+                    status: detail?.status ?? '',
+                    format: detail?.format ?? '',
+                    isPinned: detail?.isPinned ?? false,
+                    isHot: detail?.isHot ?? false,
+                    isRecommended: detail?.isRecommended ?? false,
+                  ));
+                }
               },
             );
           },
