@@ -5,12 +5,18 @@ class DetailCtaButton extends StatelessWidget {
   final String? targetChapterUrl;
   final String ctaLabel;
   final bool isContinue;
+  final String? comicTitle;
+  final String? comicLink;
+  final String? comicThumb;
 
   const DetailCtaButton({
     super.key,
     required this.targetChapterUrl,
     required this.ctaLabel,
     required this.isContinue,
+    this.comicTitle,
+    this.comicLink,
+    this.comicThumb,
   });
 
   @override
@@ -23,6 +29,9 @@ class DetailCtaButton extends StatelessWidget {
                 context.push('/reader', extra: {
                   'chapterUrl': targetChapterUrl,
                   'fromDetail': true,
+                  'comicTitle': comicTitle,
+                  'comicLink': comicLink,
+                  'comicThumb': comicThumb,
                 });
               }
             : null,

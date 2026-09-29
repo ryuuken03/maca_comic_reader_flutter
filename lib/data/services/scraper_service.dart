@@ -108,12 +108,6 @@ class ScraperService {
   }
   
   Future<DetailComicModel> getDetailComic(String url, {bool forceRefresh = false}) async {
-    final cacheKey = 'detail_$url';
-    if (!forceRefresh) {
-      final cached = ApiCacheManager.instance.get<DetailComicModel>(cacheKey);
-      if (cached != null) return cached;
-    }
-
     String slug = url;
     if (url.contains('/komik/')) {
       slug = url.split('/komik/').last;
@@ -121,6 +115,13 @@ class ScraperService {
       slug = url.split('/series/').last.split('?').first.split('/').firstWhere((e) => e.isNotEmpty, orElse: () => slug);
     }
     slug = slug.split('?').first.replaceAll('/', '').trim();
+
+    final cacheKey = 'detail_slug_$slug';
+    if (!forceRefresh) {
+      final cached = ApiCacheManager.instance.get<DetailComicModel>(cacheKey) ??
+          ApiCacheManager.instance.get<DetailComicModel>('detail_$url');
+      if (cached != null) return cached;
+    }
 
     final apiUrl = '${AppConstants.apiBaseUrl}/series/$slug';
     final chaptersApiUrl = '${AppConstants.apiBaseUrl}/series/$slug/chapters';
@@ -297,6 +298,7 @@ class ScraperService {
       );
 
       ApiCacheManager.instance.set<DetailComicModel>(cacheKey, detailComic, ttl: const Duration(minutes: 20));
+      ApiCacheManager.instance.set<DetailComicModel>('detail_$url', detailComic, ttl: const Duration(minutes: 20));
       return detailComic;
     } catch (e) {
        throw Exception('Gagal me-parsing JSON Backend Detail: $e');

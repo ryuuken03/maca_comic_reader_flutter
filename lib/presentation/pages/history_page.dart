@@ -122,6 +122,9 @@ class _HistoryPageState extends State<HistoryPage> {
                     context.push('/reader', extra: {
                       'chapterUrl': comic.chapterLink!,
                       'fromDetail': false,
+                      'comicTitle': comic.title,
+                      'comicLink': comic.link,
+                      'comicThumb': comic.thumbUrl,
                     });
                   } else {
                     context.push('/detail', extra: comic.link);

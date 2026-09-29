@@ -16,9 +16,18 @@ const _kAccent = Color(0xFFFDD644);
 class ReaderPage extends StatefulWidget {
   final String chapterUrl;
   final bool fromDetail;
+  final String? comicTitle;
+  final String? comicLink;
+  final String? comicThumb;
 
-  const ReaderPage(
-      {super.key, required this.chapterUrl, this.fromDetail = false});
+  const ReaderPage({
+    super.key,
+    required this.chapterUrl,
+    this.fromDetail = false,
+    this.comicTitle,
+    this.comicLink,
+    this.comicThumb,
+  });
 
   @override
   State<ReaderPage> createState() => _ReaderPageState();
@@ -171,7 +180,12 @@ class _ReaderPageState extends State<ReaderPage> {
         setState(() => _isTimeout = true);
       }
     });
-    _readerProvider.fetchReaderImages(widget.chapterUrl);
+    _readerProvider.fetchReaderImages(
+      widget.chapterUrl,
+      comicTitle: widget.comicTitle,
+      comicLink: widget.comicLink,
+      comicThumb: widget.comicThumb,
+    );
   }
 
   void _onProviderChanged() {
@@ -179,6 +193,7 @@ class _ReaderPageState extends State<ReaderPage> {
       _loadingTimer?.cancel();
       if (mounted) {
         context.read<LibraryProvider>().fetchHistory();
+        context.read<LibraryProvider>().fetchBookmarks();
       }
     }
   }

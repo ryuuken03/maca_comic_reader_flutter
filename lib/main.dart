@@ -61,6 +61,9 @@ class MyApp extends StatelessWidget {
             return ReaderPage(
               chapterUrl: extra['chapterUrl'] as String,
               fromDetail: extra['fromDetail'] as bool? ?? false,
+              comicTitle: extra['comicTitle'] as String?,
+              comicLink: extra['comicLink'] as String?,
+              comicThumb: extra['comicThumb'] as String?,
             );
           },
         ),

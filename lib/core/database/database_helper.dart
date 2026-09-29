@@ -251,52 +251,64 @@ CREATE TABLE IF NOT EXISTS http_cache (
     await db.delete('history', where: 'link = ?', whereArgs: [link]);
   }
 
+  String _extractSlug(String url) {
+    if (url.isEmpty) return '';
+    final clean = url.split('?').first.replaceAll(RegExp(r'/+$'), '');
+    if (clean.contains('/series/')) {
+      final after = clean.split('/series/').last;
+      return after.split('/').firstWhere((s) => s.isNotEmpty, orElse: () => '');
+    }
+    if (clean.contains('/komik/')) {
+      final after = clean.split('/komik/').last;
+      return after.split('/').firstWhere((s) => s.isNotEmpty, orElse: () => '');
+    }
+    return clean.split('/').lastWhere((s) => s.isNotEmpty, orElse: () => clean);
+  }
+
   Future<void> saveBookmark(ComicModel comic) async {
     final db = await instance.database;
+    final slug = _extractSlug(comic.link);
 
-    // Cek apakah komik ini sebelumnya sudah pernah disimpan dan memiliki status / progress chapter
+    // Cek apakah komik ini sebelumnya sudah pernah disimpan untuk mempertahankan isPinned/isHot/isRecommended
     final existing = await db.query(
       'bookmarks',
-      columns: ['isPinned', 'isHot', 'isRecommended', 'latestChapter', 'chapterLink'],
-      where: 'link = ?',
-      whereArgs: [comic.link],
+      columns: ['isPinned', 'isHot', 'isRecommended'],
+      where: 'link = ? OR link LIKE ? OR link LIKE ?',
+      whereArgs: [comic.link, '%/series/$slug%', '%/komik/$slug%'],
       limit: 1,
     );
 
     int isPinned = comic.isPinned ? 1 : 0;
     int isHot = comic.isHot ? 1 : 0;
     int isRecommended = comic.isRecommended ? 1 : 0;
-    String? latestChapter = comic.latestChapter;
-    String? chapterLink = comic.chapterLink;
 
     if (existing.isNotEmpty) {
       final prev = existing.first;
       if (isPinned == 0) isPinned = (prev['isPinned'] as int?) ?? 0;
       if (isHot == 0) isHot = (prev['isHot'] as int?) ?? 0;
       if (isRecommended == 0) isRecommended = (prev['isRecommended'] as int?) ?? 0;
-      if (latestChapter == null || latestChapter.isEmpty) {
-        latestChapter = prev['latestChapter'] as String?;
-      }
-      if (chapterLink == null || chapterLink.isEmpty) {
-        chapterLink = prev['chapterLink'] as String?;
-      }
     }
 
-    // Hapus bookmark lama dengan url detail (link) yang sama agar diganti sepenuhnya
-    await db.delete('bookmarks', where: 'link = ?', whereArgs: [comic.link]);
+    // Hapus bookmark lama dengan url / slug yang sama agar diganti sepenuhnya dan tidak duplikat
+    await db.delete(
+      'bookmarks',
+      where: 'link = ? OR link LIKE ? OR link LIKE ?',
+      whereArgs: [comic.link, '%/series/$slug%', '%/komik/$slug%'],
+    );
 
     final map = comic.toMap();
     map['isPinned'] = isPinned;
     map['isHot'] = isHot;
     map['isRecommended'] = isRecommended;
-    map['latestChapter'] = latestChapter;
-    map['chapterLink'] = chapterLink;
+    map['latestChapter'] = comic.latestChapter;
+    map['chapterLink'] = comic.chapterLink;
     map['updatedAt'] = DateTime.now().toIso8601String();
     await db.insert('bookmarks', map);
   }
 
   Future<void> updateBookmarkProgress(String link, String chapterTitle, String chapterLink) async {
     final db = await instance.database;
+    final slug = _extractSlug(link);
     await db.update(
       'bookmarks',
       {
@@ -304,8 +316,8 @@ CREATE TABLE IF NOT EXISTS http_cache (
         'chapterLink': chapterLink,
         'updatedAt': DateTime.now().toIso8601String(),
       },
-      where: 'link = ?',
-      whereArgs: [link],
+      where: 'link = ? OR link LIKE ? OR link LIKE ?',
+      whereArgs: [link, '%/series/$slug%', '%/komik/$slug%'],
     );
   }
 
@@ -328,7 +340,12 @@ CREATE TABLE IF NOT EXISTS http_cache (
 
   Future<void> removeBookmark(String link) async {
     final db = await instance.database;
-    await db.delete('bookmarks', where: 'link = ?', whereArgs: [link]);
+    final slug = _extractSlug(link);
+    await db.delete(
+      'bookmarks',
+      where: 'link = ? OR link LIKE ? OR link LIKE ?',
+      whereArgs: [link, '%/series/$slug%', '%/komik/$slug%'],
+    );
   }
 
   Future<void> clearBookmarks() async {
@@ -338,21 +355,23 @@ CREATE TABLE IF NOT EXISTS http_cache (
 
   Future<bool> isBookmarked(String link) async {
     final db = await instance.database;
+    final slug = _extractSlug(link);
     final maps = await db.query(
       'bookmarks',
-      where: 'link = ?',
-      whereArgs: [link],
+      where: 'link = ? OR link LIKE ? OR link LIKE ?',
+      whereArgs: [link, '%/series/$slug%', '%/komik/$slug%'],
     );
     return maps.isNotEmpty;
   }
 
   Future<bool> isBookmarkedReader(String link, String index) async {
     final db = await instance.database;
+    final slug = _extractSlug(link);
     final maps = await db.query(
       'bookmarks',
       columns: ['id'],
-      where: 'link = ? AND latestChapter = ?',
-      whereArgs: [link, index],
+      where: '(link = ? OR link LIKE ? OR link LIKE ?) AND latestChapter = ?',
+      whereArgs: [link, '%/series/$slug%', '%/komik/$slug%', index],
     );
     return maps.isNotEmpty;
   }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/constants/constants.dart';
 import '../../core/database/database_helper.dart';
+import '../../core/utils/api_cache_manager.dart';
 import '../../data/models/comic_model.dart';
 import '../../data/models/detail_comic_model.dart';
 import '../../data/models/downloaded_chapter_model.dart';
@@ -37,20 +38,66 @@ class ReaderProvider with ChangeNotifier {
   bool _isOffline = false;
   bool get isOffline => _isOffline;
 
-  Future<void> fetchReaderImages(String chapterUrl) async {
+  Future<void> fetchReaderImages(
+    String chapterUrl, {
+    String? comicTitle,
+    String? comicLink,
+    String? comicThumb,
+    DetailComicModel? detailComic,
+  }) async {
+    // 1. Dapatkan series slug dan link dari chapterUrl secara cepat
+    String seriesSlug = '';
+    if (chapterUrl.contains('/series/')) {
+      final parts = chapterUrl.split('/series/').last.split('/');
+      if (parts.isNotEmpty) {
+        seriesSlug = parts.first;
+      }
+    } else if (chapterUrl.contains('/chapter/')) {
+      final seg = chapterUrl.split('/chapter/').last.split('?').first.replaceAll('/', '');
+      if (seg.contains('-chapter-')) {
+        seriesSlug = seg.split('-chapter-').first;
+      }
+    }
+
+    final seriesLink = (comicLink != null && comicLink.isNotEmpty)
+        ? comicLink
+        : (seriesSlug.isNotEmpty ? '${AppConstants.baseUrl}/series/$seriesSlug' : chapterUrl);
+
+    // Ambil detail comic dari parameter atau cache jika sudah ada
+    DetailComicModel? cachedDetail = detailComic;
+    if (cachedDetail == null && seriesSlug.isNotEmpty) {
+      cachedDetail = ApiCacheManager.instance.get<DetailComicModel>('detail_slug_$seriesSlug') ??
+          ApiCacheManager.instance.get<DetailComicModel>('detail_$seriesLink');
+    }
+
     _isLoading = true;
     _readerImages = [];
-    _readerComicTitle = '';
-    _readerComicLink = '';
-    _readerChapterTitle = '';
-    _readerComicThumb = '';
-    _detailComic = null;
-    _offlineChapters = [];
     _isOffline = false;
+    _offlineChapters = [];
+    _detailComic = cachedDetail;
+
+    if (cachedDetail != null) {
+      _readerComicTitle = cachedDetail.comic.title;
+      _readerComicLink = cachedDetail.comic.link;
+      _readerComicThumb = cachedDetail.comic.thumbUrl;
+    } else {
+      _readerComicTitle = (comicTitle != null && comicTitle.isNotEmpty)
+          ? comicTitle
+          : (seriesSlug.isNotEmpty
+              ? seriesSlug.split('-').map((w) => w.isNotEmpty ? '${w[0].toUpperCase()}${w.substring(1)}' : '').join(' ')
+              : '');
+      _readerComicLink = seriesLink;
+      _readerComicThumb = comicThumb ?? '';
+    }
+
+    final actIndexStr = chapterUrl.split('/').lastWhere((e) => e.isNotEmpty, orElse: () => '');
+    final matchingInitial = _detailComic?.chapters.where((c) => c.link == chapterUrl).firstOrNull;
+    _readerChapterTitle = matchingInitial?.title ?? (actIndexStr.isNotEmpty ? 'Chapter $actIndexStr' : '');
+
     notifyListeners();
 
     try {
-      // 1. Cek apakah chapter tersedia secara offline di database lokal
+      // 2. Cek apakah chapter tersedia secara offline di database lokal
       final downloaded = await DatabaseHelper.instance.getDownloadedChapterByUrl(chapterUrl);
       if (downloaded != null) {
         final localImages = await DownloadService.instance.getLocalChapterImagePaths(
@@ -102,53 +149,64 @@ class ReaderProvider with ChangeNotifier {
         }
       }
 
-      // 2. Mode Online: Dapatkan series slug dan link dari chapterUrl
-      String seriesSlug = '';
-      if (chapterUrl.contains('/series/')) {
-        final parts = chapterUrl.split('/series/').last.split('/');
-        if (parts.isNotEmpty) {
-          seriesSlug = parts.first;
+      // 3. Mode Online: Request reader images & detail komik
+      final readerFuture = _repository.getReaderData(chapterUrl);
+      final detailFuture = (_detailComic == null && seriesSlug.isNotEmpty)
+          ? _repository.getDetailComic(seriesLink)
+          : null;
+
+      try {
+        final readerData = await readerFuture;
+        _readerImages = readerData.images;
+        _isLoading = false;
+        notifyListeners();
+      } catch (e) {
+        debugPrint('Error getReaderData: $e');
+        _isLoading = false;
+        notifyListeners();
+        return;
+      }
+
+      if (detailFuture != null) {
+        try {
+          final fetchedDetail = await detailFuture;
+          _detailComic = fetchedDetail;
+          _readerComicTitle = fetchedDetail.comic.title;
+          _readerComicLink = fetchedDetail.comic.link;
+          _readerComicThumb = fetchedDetail.comic.thumbUrl;
+          notifyListeners();
+        } catch (e) {
+          debugPrint('Warning: getDetailComic in reader: $e');
         }
       }
-      final seriesLink = '${AppConstants.baseUrl}/series/$seriesSlug';
-
-      // 3. Request paralel untuk reader images & detail komik
-      final readerFuture = _repository.getReaderData(chapterUrl);
-      final detailFuture = _repository.getDetailComic(seriesLink);
-
-      final readerData = await readerFuture;
-      _readerImages = readerData.images;
-      _isLoading = false;
-      notifyListeners();
-
-      final detailComic = await detailFuture;
-      _detailComic = detailComic;
-      _readerComicTitle = detailComic.comic.title;
-      _readerComicLink = detailComic.comic.link;
-      _readerComicThumb = detailComic.comic.thumbUrl;
 
       // Ambil judul chapter yang rapi dari daftar chapter
-      final matchingChapter = detailComic.chapters.where((c) => c.link == chapterUrl).firstOrNull;
-      final actIndexStr = chapterUrl.split('/').lastWhere((e) => e.isNotEmpty, orElse: () => '');
-      final chapterTitle = matchingChapter?.title ?? actIndexStr;
-      _readerChapterTitle = chapterTitle;
+      final matchingChapter = _detailComic?.chapters.where((c) => c.link == chapterUrl).firstOrNull;
+      final finalChapterTitle = matchingChapter?.title ??
+          (actIndexStr.isNotEmpty ? 'Chapter $actIndexStr' : _readerChapterTitle);
+      _readerChapterTitle = finalChapterTitle;
 
-      await _repository.saveHistory(ComicModel(
-        title: detailComic.comic.title,
-        thumbUrl: detailComic.comic.thumbUrl,
-        link: detailComic.comic.link,
-        latestChapter: chapterTitle,
-        chapterLink: chapterUrl,
-        type: detailComic.type,
-        status: detailComic.status,
-        format: detailComic.format,
-        isPinned: detailComic.isPinned,
-        isHot: detailComic.isHot,
-        isRecommended: detailComic.isRecommended,
-      ));
+      final finalLink = _readerComicLink.isNotEmpty ? _readerComicLink : seriesLink;
+      final finalTitle = _readerComicTitle.isNotEmpty ? _readerComicTitle : (seriesSlug.isNotEmpty ? seriesSlug : 'Komik');
 
-      // Jika komik ini tersimpan di bookmark, perbarui posisi baca terakhir secara otomatis
-      await _repository.updateBookmarkProgress(detailComic.comic.link, chapterTitle, chapterUrl);
+      if (finalLink.isNotEmpty) {
+        await _repository.saveHistory(ComicModel(
+          title: finalTitle,
+          thumbUrl: _readerComicThumb,
+          link: finalLink,
+          latestChapter: finalChapterTitle,
+          chapterLink: chapterUrl,
+          type: _detailComic?.type ?? '',
+          status: _detailComic?.status ?? '',
+          format: _detailComic?.format ?? '',
+          isPinned: _detailComic?.isPinned ?? false,
+          isHot: _detailComic?.isHot ?? false,
+          isRecommended: _detailComic?.isRecommended ?? false,
+        ));
+
+        // Jika komik ini tersimpan di bookmark, perbarui posisi baca terakhir secara otomatis
+        await _repository.updateBookmarkProgress(finalLink, finalChapterTitle, chapterUrl);
+      }
 
       notifyListeners();
     } catch (e) {

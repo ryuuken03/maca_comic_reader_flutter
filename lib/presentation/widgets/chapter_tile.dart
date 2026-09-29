@@ -134,6 +134,9 @@ class ChapterTile extends StatelessWidget {
         context.push('/reader', extra: {
           'chapterUrl': chapter.link,
           'fromDetail': true,
+          'comicTitle': comicTitle,
+          'comicLink': comicUrl,
+          'comicThumb': comicThumbUrl,
         });
       },
     );

@@ -100,6 +100,9 @@ class _CollectionBookmarkTabState extends State<CollectionBookmarkTab> {
                               context.push('/reader', extra: {
                                 'chapterUrl': comic.chapterLink!,
                                 'fromDetail': false,
+                                'comicTitle': comic.title,
+                                'comicLink': comic.link,
+                                'comicThumb': comic.thumbUrl,
                               });
                             } else {
                               context.push('/detail', extra: comic.link);

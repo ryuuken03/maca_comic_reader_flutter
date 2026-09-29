@@ -128,6 +128,9 @@ class _BookmarkPageState extends State<BookmarkPage> {
                     context.push('/reader', extra: {
                       'chapterUrl': comic.chapterLink!,
                       'fromDetail': false,
+                      'comicTitle': comic.title,
+                      'comicLink': comic.link,
+                      'comicThumb': comic.thumbUrl,
                     });
                   } else {
                     context.push('/detail', extra: comic.link);

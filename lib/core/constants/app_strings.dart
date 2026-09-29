@@ -24,6 +24,7 @@ class AppStrings {
   static const String readLess = 'Lebih sedikit';
   static const String lastRead = 'Terakhir Dibaca';
   static const String saved = 'Tersimpan';
+  static const String savedFromReader = 'Tersimpan dari Reader';
   static const String noChaptersFound = 'Chapter tidak ditemukan';
   static const String genres = 'Genre';
 

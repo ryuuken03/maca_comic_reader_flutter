@@ -158,6 +158,9 @@ class ReaderBottomBar extends StatelessWidget {
                         ? () => context.pushReplacement('/reader', extra: {
                               'chapterUrl': prevChapterUrl,
                               'fromDetail': fromDetail,
+                              'comicTitle': provider.readerComicTitle,
+                              'comicLink': provider.readerComicLink,
+                              'comicThumb': provider.readerComicThumb,
                             })
                         : null,
                   ),
@@ -219,6 +222,9 @@ class ReaderBottomBar extends StatelessWidget {
                         ? () => context.pushReplacement('/reader', extra: {
                               'chapterUrl': nextChapterUrl,
                               'fromDetail': fromDetail,
+                              'comicTitle': provider.readerComicTitle,
+                              'comicLink': provider.readerComicLink,
+                              'comicThumb': provider.readerComicThumb,
                             })
                         : null,
                   ),
@@ -425,8 +431,14 @@ class ReaderAppBar extends StatelessWidget implements PreferredSizeWidget {
                         chapterUrl.split('/').lastWhere((e) => e.isNotEmpty, orElse: () => '');
                   }
 
-                  final title = detail?.comic.title ?? readerProvider.readerComicTitle;
-                  final thumbUrl = detail?.comic.thumbUrl ?? readerProvider.readerComicThumb;
+                  final title = (detail != null && detail.comic.title.isNotEmpty)
+                      ? detail.comic.title
+                      : (readerProvider.readerComicTitle.isNotEmpty
+                          ? readerProvider.readerComicTitle
+                          : 'Komik');
+                  final thumbUrl = (detail != null && detail.comic.thumbUrl.isNotEmpty)
+                      ? detail.comic.thumbUrl
+                      : readerProvider.readerComicThumb;
 
                   libraryProvider.toggleChapterBookmark(ComicModel(
                     title: title,
@@ -437,6 +449,10 @@ class ReaderAppBar extends StatelessWidget implements PreferredSizeWidget {
                     type: detail?.type ?? '',
                     status: detail?.status ?? '',
                     format: detail?.format ?? '',
+                    updatedAt: (detail != null && detail.comic.updatedAt.isNotEmpty)
+                        ? detail.comic.updatedAt
+                        : (detail?.displayDate ?? ''),
+                    createdAt: detail?.comic.createdAt ?? '',
                     isPinned: detail?.isPinned ?? false,
                     isHot: detail?.isHot ?? false,
                     isRecommended: detail?.isRecommended ?? false,

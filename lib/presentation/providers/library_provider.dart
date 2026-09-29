@@ -44,13 +44,39 @@ class LibraryProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  static String extractComicSlug(String url) {
+    if (url.isEmpty) return '';
+    final clean = url.split('?').first.replaceAll(RegExp(r'/+$'), '');
+    if (clean.contains('/series/')) {
+      final after = clean.split('/series/').last;
+      return after.split('/').firstWhere((s) => s.isNotEmpty, orElse: () => '');
+    }
+    if (clean.contains('/komik/')) {
+      final after = clean.split('/komik/').last;
+      return after.split('/').firstWhere((s) => s.isNotEmpty, orElse: () => '');
+    }
+    return clean.split('/').lastWhere((s) => s.isNotEmpty, orElse: () => clean);
+  }
+
+  static bool isSameComic(String? urlA, String? urlB) {
+    if (urlA == null || urlB == null) return false;
+    if (urlA.isEmpty || urlB.isEmpty) return false;
+    if (urlA == urlB) return true;
+    final cleanA = urlA.split('?').first.replaceAll(RegExp(r'/+$'), '');
+    final cleanB = urlB.split('?').first.replaceAll(RegExp(r'/+$'), '');
+    if (cleanA == cleanB) return true;
+    final slugA = extractComicSlug(cleanA);
+    final slugB = extractComicSlug(cleanB);
+    return slugA.isNotEmpty && slugA == slugB;
+  }
+
   bool isComicBookmarked(String link) {
-    return _bookmarks.any((b) => b.link == link);
+    return _bookmarks.any((b) => isSameComic(b.link, link));
   }
 
   ComicModel? getBookmark(String link) {
     return _bookmarks.cast<ComicModel?>().firstWhere(
-      (b) => b?.link == link,
+      (b) => isSameComic(b?.link, link),
       orElse: () => null,
     );
   }
@@ -65,8 +91,12 @@ class LibraryProvider with ChangeNotifier {
   }
 
   Future<void> toggleBookmark(ComicModel comic) async {
-    if (isComicBookmarked(comic.link)) {
-      await _repository.removeBookmark(comic.link);
+    final existing = getBookmark(comic.link);
+    if (existing != null) {
+      await _repository.removeBookmark(existing.link);
+      if (existing.link != comic.link) {
+        await _repository.removeBookmark(comic.link);
+      }
     } else {
       await _repository.saveBookmark(comic);
     }
@@ -74,6 +104,10 @@ class LibraryProvider with ChangeNotifier {
   }
 
   Future<void> removeBookmark(String link) async {
+    final existing = getBookmark(link);
+    if (existing != null) {
+      await _repository.removeBookmark(existing.link);
+    }
     await _repository.removeBookmark(link);
     await fetchBookmarks();
   }
@@ -85,17 +119,22 @@ class LibraryProvider with ChangeNotifier {
   }
 
   Future<void> toggleChapterBookmark(ComicModel comic) async {
-    if (isComicBookmarked(comic.link)) {
-      await _repository.removeBookmark(comic.link);
+    final existing = getBookmark(comic.link);
+    if (existing != null && existing.chapterLink == comic.chapterLink) {
+      await removeBookmark(existing.link);
     } else {
       await _repository.saveBookmark(comic);
+      await fetchBookmarks();
     }
-    await fetchBookmarks();
   }
 
   Future<void> updateBookmarkProgress(String link, String chapterTitle, String chapterLink) async {
-    if (isComicBookmarked(link)) {
-      await _repository.updateBookmarkProgress(link, chapterTitle, chapterLink);
+    final existing = getBookmark(link);
+    if (existing != null) {
+      await _repository.updateBookmarkProgress(existing.link, chapterTitle, chapterLink);
+      if (existing.link != link) {
+        await _repository.updateBookmarkProgress(link, chapterTitle, chapterLink);
+      }
       await fetchBookmarks();
     }
   }

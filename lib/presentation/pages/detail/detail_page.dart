@@ -73,37 +73,47 @@ class _DetailPageState extends State<DetailPage> {
             builder: (context, detailProvider, libraryProvider, child) {
               if (detailProvider.detailComic == null) return const SizedBox.shrink();
 
-              final isBookmarked = libraryProvider.isComicBookmarked(widget.comicUrl);
+              final detail = detailProvider.detailComic!;
+              final existingBookmark = libraryProvider.getBookmark(detail.comic.link) ??
+                  libraryProvider.getBookmark(widget.comicUrl);
+              final isBookmarked = existingBookmark != null;
+              final isBookmarkedFromReader = isBookmarked &&
+                  existingBookmark.chapterLink != null &&
+                  existingBookmark.chapterLink!.isNotEmpty;
+
               return IconButton(
                 icon: Icon(
                   isBookmarked ? Icons.bookmark : Icons.bookmark_border,
                   color: isBookmarked ? const Color(0xFFFDD644) : null,
                 ),
-                onPressed: () {
-                  final detail = detailProvider.detailComic!;
-                  final existingBookmark = libraryProvider.getBookmark(widget.comicUrl);
-                  final bookmarkModel = ComicModel(
-                    title: detail.comic.title,
-                    thumbUrl: detail.comic.thumbUrl,
-                    link: detail.comic.link,
-                    latestChapter: existingBookmark?.latestChapter ??
-                        detail.comic.latestChapter ??
-                        (detail.chapters.isNotEmpty ? detail.chapters.first.title : null),
-                    chapterLink: existingBookmark?.chapterLink ??
-                        detail.comic.chapterLink ??
-                        (detail.chapters.isNotEmpty ? detail.chapters.first.link : null),
-                    type: detail.type,
-                    status: detail.status,
-                    format: detail.format,
-                    updatedAt: existingBookmark?.updatedAt.isNotEmpty == true
-                        ? existingBookmark!.updatedAt
-                        : (detail.comic.updatedAt.isNotEmpty ? detail.comic.updatedAt : detail.displayDate),
-                    createdAt: detail.createdAt.isNotEmpty ? detail.createdAt : detail.comic.createdAt,
-                    isPinned: existingBookmark?.isPinned ?? detail.isPinned,
-                    isHot: existingBookmark?.isHot ?? detail.isHot,
-                    isRecommended: existingBookmark?.isRecommended ?? detail.isRecommended,
-                  );
-                  libraryProvider.toggleBookmark(bookmarkModel);
+                tooltip: isBookmarkedFromReader ? AppStrings.savedFromReader : null,
+                onPressed: isBookmarkedFromReader
+                    ? null // Jika sudah bookmark di reader, tombol dinonaktifkan agar tidak mereplace data chapter terakhir
+                    : () {
+                  if (existingBookmark != null) {
+                    libraryProvider.removeBookmark(existingBookmark.link);
+                  } else {
+                    final bookmarkModel = ComicModel(
+                      title: detail.comic.title,
+                      thumbUrl: detail.comic.thumbUrl,
+                      link: detail.comic.link,
+                      latestChapter: null, // Sesuai aturan: jika dimulai dari detail_page, chapter dibuat null
+                      chapterLink: null,   // Sesuai aturan: jika dimulai dari detail_page, chapter dibuat null
+                      type: detail.type,
+                      status: detail.status,
+                      format: detail.format,
+                      updatedAt: detail.comic.updatedAt.isNotEmpty
+                          ? detail.comic.updatedAt
+                          : detail.displayDate,
+                      createdAt: detail.createdAt.isNotEmpty
+                          ? detail.createdAt
+                          : detail.comic.createdAt,
+                      isPinned: detail.isPinned,
+                      isHot: detail.isHot,
+                      isRecommended: detail.isRecommended,
+                    );
+                    libraryProvider.toggleBookmark(bookmarkModel);
+                  }
                 },
               );
             },
@@ -467,6 +477,9 @@ class _DetailPageState extends State<DetailPage> {
                   targetChapterUrl: targetChapterUrl,
                   ctaLabel: ctaLabel,
                   isContinue: isContinue,
+                  comicTitle: detail.comic.title,
+                  comicLink: detail.comic.link,
+                  comicThumb: detail.comic.thumbUrl,
                 ),
                 if (detail.genres.isNotEmpty) ...[
                   const SizedBox(height: 12),
@@ -679,6 +692,9 @@ class _DetailPageState extends State<DetailPage> {
                 targetChapterUrl: targetChapterUrl,
                 ctaLabel: ctaLabel,
                 isContinue: isContinue,
+                comicTitle: detail.comic.title,
+                comicLink: detail.comic.link,
+                comicThumb: detail.comic.thumbUrl,
               ),
             ),
           ),

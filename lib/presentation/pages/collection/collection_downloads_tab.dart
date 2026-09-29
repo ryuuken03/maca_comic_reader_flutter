@@ -138,6 +138,9 @@ class CollectionDownloadsTab extends StatelessWidget {
                       context.push('/reader', extra: {
                         'chapterUrl': chap.chapterUrl,
                         'fromDetail': true,
+                        'comicTitle': chap.comicTitle,
+                        'comicThumb': chap.comicThumbUrl,
+                        'comicLink': chap.comicId.isNotEmpty ? '${AppConstants.baseUrl}/series/${chap.comicId}' : null,
                       });
                     },
                   );
